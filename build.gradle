@@ -1,0 +1,26 @@
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://jars.interlis.ch"
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+
+    implementation('ch.interlis:iox-ili:1.21.6') {
+        exclude group: 'ch.ehi', module: 'ehibasics'
+    }
+    implementation group: 'ch.ehi', name: 'ehibasics', version: '1.4.1'
+    implementation group: 'ch.interlis', name: 'ili2c-tool', version: '5.2.2'
+    implementation group: 'ch.interlis', name: 'ili2c-core', version: '5.2.2'
+    //implementation group: 'ch.interlis', name: 'iox-wkf', version: '1.1.0'
+    implementation 'org.wololo:flatgeobuf:3.24.0'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    
+
+}

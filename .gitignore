@@ -1,0 +1,42 @@
+version.txt
+src/main/resources/templates/version.txt
+src/test/data/ilismeta/*.xml
+
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+.gradle
+/build/
+!gradle/wrapper/gradle-wrapper.jar
+src/main/resources/libs-ext/*.jar
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+/bin/
+
+# ---> OSX
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Ignore Gradle build output directory
+build
