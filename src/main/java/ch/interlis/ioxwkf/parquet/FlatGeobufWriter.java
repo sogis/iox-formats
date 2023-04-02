@@ -241,7 +241,7 @@ public class FlatGeobufWriter implements IoxWriter {
                 try {
                     writer = AvroParquetWriter.<GenericData.Record>builder(path)
                             .withSchema(schema)
-                            .withCompressionCodec(CompressionCodecName.SNAPPY)
+                            .withCompressionCodec(CompressionCodecName.SNAPPY) // TODO was ist gut? Snappy ist was "natives" (ähnlich wie sqlite).
                             .withRowGroupSize(ParquetWriter.DEFAULT_BLOCK_SIZE)
                             .withPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
                             .withConf(new Configuration())
