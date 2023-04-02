@@ -19,6 +19,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -31,14 +32,30 @@ import org.wololo.flatgeobuf.generated.GeometryType;
 import org.wololo.flatgeobuf.GeometryConversions;
 import org.locationtech.jts.geom.Envelope;
 
-import com.google.flatbuffers.FlatBufferBuilder;
+import org.apache.avro.Schema;
+import org.apache.avro.Schema.Field;
+import org.apache.avro.generic.GenericData;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.avro.AvroParquetWriter;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.io.OutputFile;
+import org.apache.hadoop.fs.Path;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.BooleanNode;
+import com.google.flatbuffers.FlatBufferBuilder;
+import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.MultiLineString;
 import com.vividsolutions.jts.geom.MultiPoint;
 import com.vividsolutions.jts.geom.MultiPolygon;
 import com.vividsolutions.jts.geom.Point;
 import com.vividsolutions.jts.geom.Polygon;
+import com.vividsolutions.jts.io.WKTWriter;
 
 import ch.ehi.basics.settings.Settings;
 import ch.interlis.ili2c.metamodel.TransferDescription;
@@ -50,6 +67,8 @@ import ch.interlis.iox.IoxWriter;
 import ch.interlis.iox.ObjectEvent;
 import ch.interlis.iox.StartBasketEvent;
 import ch.interlis.iox.StartTransferEvent;
+import ch.interlis.iox_j.jts.Iox2jts;
+import ch.interlis.iox_j.jts.Iox2jtsException;
 
 import static java.nio.charset.CodingErrorAction.REPLACE;
 
@@ -57,9 +76,13 @@ public class FlatGeobufWriter implements IoxWriter {
     public static final String FEATURES_COUNT = "ch.interlis.ioxwkf.flatgeobuf.featurescount";
 
     private OutputStream outputStream;
+    private File outputFile;
     private FlatBufferBuilder builder;
+    private ParquetWriter<GenericData.Record> writer = null;
     
     private HeaderMeta headerMeta = null;
+    
+    private Schema schema = null;
     private List<MyAttributeDescriptor> attrDescs = null;
 
     private TransferDescription td = null;
@@ -88,12 +111,9 @@ public class FlatGeobufWriter implements IoxWriter {
     }
     
     private void init(File file, Settings settings) throws IoxException {
-        try {
-            this.outputStream = new FileOutputStream(file);
-            this.tableName = file.getName().replace(".fgb", ""); // TODO: ja...
-        } catch (FileNotFoundException e) {
-            throw new IoxException(e);
-        }
+        //this.outputStream = new FileOutputStream(file);
+        this.outputFile = file;
+        this.tableName = file.getName().replace(".fgb", ""); // TODO: ja...        
     }
 
     @Override
@@ -214,158 +234,136 @@ public class FlatGeobufWriter implements IoxWriter {
                     }
                 }
             }
+            if (schema == null) {
+                schema = createSchema();
+                
+                Path path = new Path(outputFile.getAbsolutePath());
+                try {
+                    writer = AvroParquetWriter.<GenericData.Record>builder(path)
+                            .withSchema(schema)
+                            .withCompressionCodec(CompressionCodecName.SNAPPY)
+                            .withRowGroupSize(ParquetWriter.DEFAULT_BLOCK_SIZE)
+                            .withPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
+                            .withConf(new Configuration())
+                            .withValidation(false)
+                            .withDictionaryEncoding(false)
+                            .build();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    throw new IoxException(e.getMessage());
+                }
+            }
+            
 
-
-            
-            
-
-            
-            
-//            if(featureType==null) {
-//                featureType=createFeatureType(attrDescs);
-//                featureBuilder = new SimpleFeatureBuilder(featureType);
-//                try {
-//                    dataStore.createSchema(featureType);
-//                    
-//                    String typeName = dataStore.getTypeNames()[0];
-//                    
-//                    transaction = new DefaultTransaction(
-//                            "create");
-//
-//                    writer = dataStore.getFeatureWriter(typeName, transaction);
-//                } catch (IOException e) {
-//                    throw new IoxException(e);
+//                for (GenericData.Record record : recordList) {
+//                    writer.write(record);
 //                }
-//            }
-//            // write object attribute-values of model attribute-names
-//            try {
-//                SimpleFeature feature=convertObject(iomObj);
-//
-//                writeFeatureToShapefile(feature);
-//            } catch (IOException e) {
-//                throw new IoxException("failed to write object "+iomObj.getobjecttag(),e);
-//            } catch (Iox2jtsException e) {
-//                throw new IoxException("failed to convert "+iomObj.getobjecttag()+" in jts",e);
-//            }
- 
+                
+            GenericData.Record record = null;
+            try {
+                record = generateRecord(iomObj, schema);
+            } catch (Iox2jtsException e) {
+                e.printStackTrace();
+                throw new IoxException(e.getMessage());
+            }
+            System.out.println(record.toString());
+            try {
+                writer.write(record);
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw new IoxException(e.getMessage());
+            }
+
+        }
+    }
+
+    private GenericData.Record generateRecord(IomObject iomObj, Schema schema) throws Iox2jtsException {
+        GenericData.Record record = new GenericData.Record(schema);
+
+        Iterator<Field> fieldi = schema.getFields().iterator();
+        while (fieldi.hasNext()) {
+            Field field = fieldi.next();
+            String attrName = field.name();
+            String attrValue = null;
+
+            String geomType = field.getProp("geomtype");
             
-        }
-    }
-
-    private static void buildPropertiesVector(
-            IomObject iomObj, HeaderMeta headerMeta, ByteBuffer target) {
-
-        target.order(ByteOrder.LITTLE_ENDIAN);
-        for (short i = 0; i < headerMeta.columns.size(); i++) {
-            ColumnMeta column = headerMeta.columns.get(i);
-            byte type = column.type;
-            Object value = iomObj.getattrvalue(column.name);
-            if (value == null) {
-                continue;
+            if (geomType != null && geomType.equalsIgnoreCase(this.COORD)) {
+                Coordinate geom = Iox2jts.coord2JTS(iomObj.getattrobj(attrName, 0));
+                attrValue = WKTWriter.toPoint(geom);
             }
-            target.putShort(i);
-            if (type == ColumnType.Bool) {
-                target.put((byte) ((boolean) value ? 1 : 0));
-            } else if (type == ColumnType.Byte) {
-                target.put((byte) value);
-            } else if (type == ColumnType.Short) {
-                target.putShort((short) value);
-            } else if (type == ColumnType.Int) {
-                target.putInt((int) value);
-            } else if (type == ColumnType.Long)
-                if (value instanceof Long) {
-                    target.putLong((long) value);
-                } else if (value instanceof BigInteger) {
-                    target.putLong(((BigInteger) value).longValue());
-                } else {
-                    target.putLong((long) value);
-                }
-            else if (type == ColumnType.Double)
-                if (value instanceof Double) {
-                    target.putDouble((double) value);
-                } else if (value instanceof BigDecimal) {
-                    target.putDouble(((BigDecimal) value).doubleValue());
-                } else {
-                    target.putDouble((double) value);
-                }
-            else if (type == ColumnType.DateTime) {
-                String isoDateTime = "";
-                if (value instanceof LocalDateTime) {
-                    isoDateTime = ((LocalDateTime) value).toString();
-                } else if (value instanceof LocalDate) {
-                    isoDateTime = ((LocalDate) value).toString();
-                } else if (value instanceof LocalTime) {
-                    isoDateTime = ((LocalTime) value).toString();
-                } else if (value instanceof OffsetDateTime) {
-                    isoDateTime = ((OffsetDateTime) value).toString();
-                } else if (value instanceof OffsetTime) {
-                    isoDateTime = ((OffsetTime) value).toString();
-                } else {
-                    throw new RuntimeException("Unknown date/time type " + type);
-                }
-                writeString(target, isoDateTime);
-            } else if (type == ColumnType.String) {
-                writeString(target, (String) value);
+        
+            else {
+                attrValue = iomObj.getattrvalue(attrName);
+            }
+                       
+            record.put(attrName, attrValue);
+        }
+        
+        return record;
+    }
+    
+    private Schema createSchema() {
+        ObjectNode rootNode = JsonNodeFactory.instance.objectNode();
+        
+        JsonNode namespaceNode = JsonNodeFactory.instance.textNode("ch.so.agi.ioxwkf.parquet");
+        rootNode.set("namespace", namespaceNode);
+
+        JsonNode typeNode = JsonNodeFactory.instance.textNode("record");
+        rootNode.set("type", typeNode);
+        
+        JsonNode nameNode = JsonNodeFactory.instance.textNode("myrecordname"); // TODO ist aber egal
+        rootNode.set("name", nameNode);
+
+        ArrayNode fieldsNode = JsonNodeFactory.instance.arrayNode();
+        for (MyAttributeDescriptor attrDesc : attrDescs) {
+            ObjectNode fieldNode = JsonNodeFactory.instance.objectNode();
+
+            JsonNode fieldNameNode = JsonNodeFactory.instance.textNode(attrDesc.getAttributeName()); 
+            fieldNode.set("name", fieldNameNode);
+
+            if (attrDesc.isGeometry()) {
+                fieldNode.set("type", getStringType(false));
+                                
+                if (attrDesc.getBinding() == Point.class) {
+                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.COORD));
+                } 
+                // else if ... Eigentlich müsste ich den Umweg über ein generische AttrDesc gar nicht gehen und könnten gleich das Schema zusammensuchen, oder?
+                // Oder es muss eine Liste von Fields sein. Glaubs...
+  
             } else {
-                throw new RuntimeException("Unknown type " + type);
+                if (attrDesc.getBinding() == String.class) {
+                    fieldNode.set("type", getStringType(false));
+                }
             }
+
+            fieldsNode.add(fieldNode);
         }
-    }
-
-    private static void writeString(ByteBuffer target, String value) {
-
-        CharsetEncoder encoder =
-                StandardCharsets.UTF_8
-                        .newEncoder()
-                        .onMalformedInput(REPLACE)
-                        .onUnmappableCharacter(REPLACE);
-
-        // save current position to write the string length later
-        final int lengthPosition = target.position();
-        // and leave room for it
-        target.position(lengthPosition + Integer.BYTES);
-
-        final int startStrPos = target.position();
-        final boolean endOfInput = true;
-        encoder.encode(CharBuffer.wrap(value), target, endOfInput);
-
-        final int endStrPos = target.position();
-        final int encodedLength = endStrPos - startStrPos;
-
-        // absolute put, doesn't change the current position
-        target.putInt(lengthPosition, encodedLength);
-    }
-
-    // AttributeDescriptor ist im dbtools-Package. Es dient dort unter anderem,
-    // um die Metainformationen der zu exportierenden Spalten/Attribute 
-    // festzustellen. Es ist aber hardcodiert für PostGIS. Wenn man z.B. 
-    // von Geopackage exportieren will, funktionieren einige Methoden nicht.
-    // Oder wenn man beliebig (ohne Modell) via IOX Formate umwandeln will.
-    // Sollte man es nicht trennen? Das Holen der Informationen aus der Quelle
-    // und das Speichern der Spalten-Infos? Oder einen AttributeDescriptor pro
-    // Format? Mmmmh was ist aber mit dem Mapping? Wo findet das dann statt?
-    // Oder ist AttributeDescriptor etwas agnostisches? Und das Mapping findet
-    // immer innerhalb einer IoxWriter-Klasse statt (beim expliziten Erstellen eines
-    // spezifischen "Schema"-Objektes.
-    // TODO 
-//    public void setAttributeDescriptors(AttributeDescriptor attrDescs[]) {
-//        
-//    }
-    
-    public void setDefaultSridCode(String sridCode) {
-        defaultSrsId = Integer.parseInt(sridCode);
+        rootNode.set("fields", fieldsNode);
+        
+        Schema.Parser parser = new Schema.Parser().setValidate(true);
+        return parser.parse(rootNode.toString());
     }
     
-    // Wird wahrscheinlich vom Format gebraucht, um schlau zu sein.
-    public void setFeaturesCount(long featuresCount) {
-        this.featuresCount = featuresCount;
-    }
+    // TODO wohin? getType? getXXXType?
     
-
+    private JsonNode getStringType(boolean isMandatory) {
+        ArrayNode arrayNode = JsonNodeFactory.instance.arrayNode();
+        arrayNode.add("string");
+        if (!isMandatory) {
+            arrayNode.add("null");
+        }
+        return arrayNode;
+    }
+        
     @Override
     public void close() throws IoxException {
-        // TODO Auto-generated method stub
-
+        try {
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new IoxException(e.getMessage());
+        }
     }
 
     @Override

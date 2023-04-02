@@ -30,18 +30,17 @@ public class ParquetWriterTest {
     public void foo() throws IoxException {
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Point", "o1");
         inputObj.setattrvalue("id1", "1");
-        inputObj.setattrvalue("Text", "text1");
-        inputObj.setattrvalue("Double", "53434");
+        inputObj.setattrvalue("aText", "text1");
+        inputObj.setattrvalue("aDouble", "53434.123");
         IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
         coordValue.setattrvalue("C1", "2600000.000");
         coordValue.setattrvalue("C2", "1200000.000");
         FlatGeobufWriter writer = null;
-        File file = new File(TEST_OUT,"foo.fgb");
+        File file = new File(TEST_OUT,"foo.parquet");
         try {
             writer = new FlatGeobufWriter(file);
             Settings settings = new Settings();
             //settings.setValue(FlatGeobufWriter.FEATURES_COUNT, "1");
-            writer.setFeaturesCount(1); // TODO: Nicht elegant. Als settings in Konstruktur? Settings kennt aber nur String. Interessanter ist aber doch eh dir Frage woher diese Info stammt. 
             writer.write(new StartTransferEvent());
             writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
             writer.write(new ObjectEvent(inputObj));
@@ -59,11 +58,7 @@ public class ParquetWriterTest {
                 writer=null;
             }
         }
-        
-        
-        
-        
-        
+
     }
     
 }
