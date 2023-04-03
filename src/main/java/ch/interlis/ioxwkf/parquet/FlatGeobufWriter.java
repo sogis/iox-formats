@@ -142,6 +142,9 @@ public class FlatGeobufWriter implements IoxWriter {
 //                        AttributeTypeBuilder attributeBuilder = new AttributeTypeBuilder();
                         MyAttributeDescriptor attrDesc = new MyAttributeDescriptor();
 
+                        // Für was brauche ich dieses if/else? Verstehe es nicht.
+                        // Bei GPKG scheint es das nicht zu geben.
+                        
                         //if(attrName.equals(iliGeomAttrName)) {
                         if(attrName.equals("gaga")) {
 
@@ -173,37 +176,51 @@ public class FlatGeobufWriter implements IoxWriter {
 //                                    attributeBuilder.setCRS(createCrs(defaultSrsId));
 //                                }
 //                            }
-                        } else {                                                        
+                        } else {   
+                            // Es wurde weder ein Modell gesetzt noch wurde die Struktur
+                            // mittel setAttrDescs definiert. -> Es wird aus dem ersten IomObject
+                            // das Zielschema möglichst gut definiert. 
+                            // Nachteile:
+                            // - Geometrie aus Struktur eruieren ... siehe Kommentar wegen anderen Strukturen. Kann eventuell abgefedert werden.
+                            // - Wenn das erste Element fehlende Attribute hat (also NULL-Werte) gehen diese Attribute bei der Schemadefinition
+                            // verloren.
+                            
+                            // TODO: Umgang mit mehreren Geometrien klären. Sowieso: muss ich im non-geo-parquet iliGeomAttrName mitschleppen?
+                            
                             // Ist das nicht relativ heikel?
                             // Funktioniert mit Strukturen nicht mehr, oder? Wegen getattrvaluecount?
                             // TODO: testen
-                            if(iliGeomAttrName==null && iomObj.getattrvaluecount(attrName)>0 && iomObj.getattrobj(attrName,0) != null) {
+                            if (iliGeomAttrName==null && iomObj.getattrvaluecount(attrName)>0 && iomObj.getattrobj(attrName,0) != null) {
                                 iliGeomAttrName = attrName;
                                 System.out.println("geometry found");
                                 IomObject iomGeom = iomObj.getattrobj(attrName,0);
                                 if (iomGeom != null) {
-                                    if (iomGeom.getobjecttag().equals(COORD)){
+                                    if (iomGeom.getobjecttag().equals(COORD)) {
                                         attrDesc.setBinding(Point.class);
-                                    }else if (iomGeom.getobjecttag().equals(MULTICOORD)){
+                                    } else if (iomGeom.getobjecttag().equals(MULTICOORD)) {
                                         attrDesc.setBinding(MultiPoint.class);
-                                    }else if(iomGeom.getobjecttag().equals(POLYLINE)){
+                                    } else if (iomGeom.getobjecttag().equals(POLYLINE)) {
                                         attrDesc.setBinding(LineString.class);
-                                    }else if (iomGeom.getobjecttag().equals(MULTIPOLYLINE)){
+                                    } else if (iomGeom.getobjecttag().equals(MULTIPOLYLINE)) {
                                         attrDesc.setBinding(MultiLineString.class);
-                                    }else if (iomGeom.getobjecttag().equals(MULTISURFACE)){
+                                    } else if (iomGeom.getobjecttag().equals(MULTISURFACE)) {
                                         int surfaceCount=iomGeom.getattrvaluecount("surface");
                                         if(surfaceCount==1) {
                                             /* Weil das "Schema" anhand des ersten IomObjektes erstellt wird, 
                                              * kann es vorkommen, dass Multisurfaces mit mehr als einer Surface nicht zu einem Multipolygon umgewandelt werden, 
                                              * sondern zu einem Polygon. Aus diesem Grund wird immer das MultiPolygon-Binding verwendet. */
                                             attrDesc.setBinding(MultiPolygon.class);
-                                        }else if(surfaceCount>1){
+                                        } else if (surfaceCount>1) {
                                             attrDesc.setBinding(MultiPolygon.class);
                                         }
                                     } else {
+                                        // Siehe Kommentar oben. Ist das sinnvoll? Resp funktioniert das wenn es andere Strukturen gibt? Diese könnten man nach JSON 
+                                        // umwandeln und als String behandeln.
+                                        // Was passiert in der Logik, falls keine Geometrie gesetzt ist? 
+                                        
                                         attrDesc.setBinding(Point.class);
                                     }
-                                    if(defaultSrsId != null) {
+                                    if (defaultSrsId != null) {
                                         attrDesc.setSrId(defaultSrsId);
                                     }
                                     attrDesc.setGeometry(true);
@@ -277,6 +294,8 @@ public class FlatGeobufWriter implements IoxWriter {
         }
     }
 
+    // Beim Shapefile ist die Schlaufe über attrDescs
+    
     private GenericData.Record generateRecord(IomObject iomObj, Schema schema) throws Iox2jtsException {
         GenericData.Record record = new GenericData.Record(schema);
 
