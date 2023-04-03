@@ -185,6 +185,11 @@ public class FlatGeobufWriter implements IoxWriter {
                             // - Wenn das erste Element fehlende Attribute hat (also NULL-Werte) gehen diese Attribute bei der Schemadefinition
                             // verloren.
                             
+                            
+                            // TODO: Eigentlich könnte ich gleich das Schema machen, aber da diese nicht so gleich gut geht wie bei Geotools-Shapefile,
+                            // doch eher Umweg über einen AttributeDescriptor?!
+                            
+                            
                             // TODO: Umgang mit mehreren Geometrien klären. Sowieso: muss ich im non-geo-parquet iliGeomAttrName mitschleppen?
                             
                             // Ist das nicht relativ heikel?
