@@ -195,8 +195,9 @@ public class FlatGeobufWriter implements IoxWriter {
                             // Ist das nicht relativ heikel?
                             // Funktioniert mit Strukturen nicht mehr, oder? Wegen getattrvaluecount?
                             // TODO: testen
-                            if (iliGeomAttrName==null && iomObj.getattrvaluecount(attrName)>0 && iomObj.getattrobj(attrName,0) != null) {
-                                iliGeomAttrName = attrName;
+                            //if (iliGeomAttrName==null && iomObj.getattrvaluecount(attrName)>0 && iomObj.getattrobj(attrName,0) != null) {
+                            if (iomObj.getattrvaluecount(attrName)>0 && iomObj.getattrobj(attrName,0) != null) {
+                                //iliGeomAttrName = attrName;
                                 System.out.println("geometry found");
                                 IomObject iomGeom = iomObj.getattrobj(attrName,0);
                                 if (iomGeom != null) {
@@ -257,7 +258,7 @@ public class FlatGeobufWriter implements IoxWriter {
                 }
             }
             if (schema == null) {
-                schema = createSchema();
+                schema = createSchema(attrDescs);
                 
                 Path path = new Path(outputFile.getAbsolutePath());
                 try {
@@ -312,11 +313,17 @@ public class FlatGeobufWriter implements IoxWriter {
 
             String geomType = field.getProp("geomtype");
             
-            if (geomType != null && geomType.equalsIgnoreCase(this.COORD)) {
-                Coordinate geom = Iox2jts.coord2JTS(iomObj.getattrobj(attrName, 0));
-                attrValue = WKTWriter.toPoint(geom);
+            System.out.println("geomType: " + geomType);
+            
+            if (geomType != null) {
+                if (geomType.equalsIgnoreCase(this.COORD)) {
+                    Coordinate geom = Iox2jts.coord2JTS(iomObj.getattrobj(attrName, 0));
+                    attrValue = WKTWriter.toPoint(geom); 
+                } else if (geomType.equalsIgnoreCase(this.POLYLINE)) {
+                    LineString geom = Iox2jts.polyline2JTSlineString(iomObj.getattrobj(attrName, 0), false, 0);
+                    attrValue = geom.toText();
+                }
             }
-        
             else {
                 attrValue = iomObj.getattrvalue(attrName);
             }
@@ -327,7 +334,7 @@ public class FlatGeobufWriter implements IoxWriter {
         return record;
     }
     
-    private Schema createSchema() {
+    private Schema createSchema(List<MyAttributeDescriptor> attrDescs) {
         ObjectNode rootNode = JsonNodeFactory.instance.objectNode();
         
         JsonNode namespaceNode = JsonNodeFactory.instance.textNode("ch.so.agi.ioxwkf.parquet");
@@ -349,11 +356,17 @@ public class FlatGeobufWriter implements IoxWriter {
             if (attrDesc.isGeometry()) {
                 fieldNode.set("type", getStringType(false));
                                 
+                // Das non-geo-parquet müsste im Schema den Geometrietyp nicht kennen.
+                // Die Umwandlung der Iox-Geometrie könnte anhand der Tags geschehen.
+                // Eigentlich ist die ganze Unterscheidung der Geometrien momentan
+                // gar nicht nötig (Gedanken nicht zu Ende geprüft).
+                // Für GeoParquet sehe es wohl wieder anders aus.
                 if (attrDesc.getBinding() == Point.class) {
                     fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.COORD));
-                } 
-                // else if ... Eigentlich müsste ich den Umweg über ein generische AttrDesc gar nicht gehen und könnten gleich das Schema zusammensuchen, oder?
-                // Oder es muss eine Liste von Fields sein. Glaubs...
+                } else if (attrDesc.getBinding() == LineString.class)  {
+                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.POLYLINE));
+                }
+                // else if ...  
   
             } else {
                 if (attrDesc.getBinding() == String.class) {

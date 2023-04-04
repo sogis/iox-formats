@@ -33,8 +33,22 @@ public class ParquetWriterTest {
         inputObj.setattrvalue("aText", "text1");
         inputObj.setattrvalue("aDouble", "53434.123");
         IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
-        coordValue.setattrvalue("C1", "2600000.000");
-        coordValue.setattrvalue("C2", "1200000.000");
+        {
+            coordValue.setattrvalue("C1", "2600000.000");
+            coordValue.setattrvalue("C2", "1200000.000");
+        }
+        
+        IomObject polylineValue=inputObj.addattrobj("attrLineString", "POLYLINE");
+        {
+            IomObject segments=polylineValue.addattrobj("sequence", "SEGMENTS");
+            IomObject coordStart=segments.addattrobj("segment", "COORD");
+            IomObject coordEnd=segments.addattrobj("segment", "COORD");
+            coordStart.setattrvalue("C1", "2600000.000");
+            coordStart.setattrvalue("C2", "1200000.000");
+            coordEnd.setattrvalue("C1", "2600010.000");
+            coordEnd.setattrvalue("C2", "1200000.000");            
+        }
+
         FlatGeobufWriter writer = null;
         File file = new File(TEST_OUT,"foo.parquet");
         try {
