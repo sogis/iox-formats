@@ -27,7 +27,8 @@ public class ParquetWriterTest {
     }
 
     @Test
-    public void foo() throws IoxException {
+    public void attributes_Ok() throws IoxException {
+        // Prepare
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Point", "o1");
         inputObj.setattrvalue("id1", "1");
         inputObj.setattrvalue("aText", "text1");
@@ -49,8 +50,9 @@ public class ParquetWriterTest {
             coordEnd.setattrvalue("C2", "1200000.000");            
         }
 
+        // Run
         FlatGeobufWriter writer = null;
-        File file = new File(TEST_OUT,"foo.parquet");
+        File file = new File(TEST_OUT,"attributes_Ok.parquet");
         try {
             writer = new FlatGeobufWriter(file);
             Settings settings = new Settings();
@@ -72,6 +74,8 @@ public class ParquetWriterTest {
                 writer=null;
             }
         }
+        
+        // Validate
 
     }
     
