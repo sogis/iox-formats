@@ -6,10 +6,15 @@ import java.io.IOException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
+import org.apache.parquet.hadoop.util.HadoopInputFile;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import ch.ehi.basics.settings.Settings;
 import ch.interlis.iom.IomObject;
@@ -20,31 +25,121 @@ import ch.interlis.iox_j.EndTransferEvent;
 import ch.interlis.iox_j.ObjectEvent;
 import ch.interlis.iox_j.StartBasketEvent;
 import ch.interlis.iox_j.StartTransferEvent;
-import ch.interlis.ioxwkf.parquet.FlatGeobufWriter;
 
 public class ParquetWriterTest {
     
     private static final String TEST_IN="src/test/data/ParquetWriter/";
-    private final static String TEST_OUT="build/test/data/ParquetWriter";
+    private static final String TEST_OUT="build/test/data/ParquetWriter";
+    
+    private static final Configuration testConf = new Configuration();
+
 
     @BeforeClass
     public static void setupFolder() {
         new File(TEST_OUT).mkdirs();
     }
-
+    
     @Test
-    public void attributes_Ok() throws IoxException, IOException {
+    public void wkt_point_Ok() throws IoxException, IOException {
         // Prepare
-        Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Point", "o1");
-        inputObj.setattrvalue("id1", "1");
-        inputObj.setattrvalue("aText", "text1");
-        inputObj.setattrvalue("aDouble", "53434.123");
+        Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
         {
             coordValue.setattrvalue("C1", "2600000.000");
             coordValue.setattrvalue("C2", "1200000.000");
         }
+
+        // Run
+        FlatGeobufWriter writer = null;
+        File file = new File(TEST_OUT,"wkt_point_Ok.parquet");
+        try {
+            writer = new FlatGeobufWriter(file);
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
+            writer.write(new ObjectEvent(inputObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch(IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if(writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer=null;
+            }
+        }
+
+        // Validate
+        Path resultFile = new Path(file.getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+      
+        GenericRecord record = reader.read();       
+        assertEquals(record.get("attrPoint").toString(),"POINT ( 2600000.0 1200000.0 )");
+                
+        GenericRecord nextRecord = reader.read();
+        assertNull(nextRecord);
+    }
+    
+    @Test
+    public void wkt_multipoint_Ok() throws IoxException, IOException {
+        // Prepare
+        Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
+        IomObject multiCoordValue=inputObj.addattrobj("attrMPoint", "MULTICOORD");
+        {
+            IomObject coordValue1 = multiCoordValue.addattrobj("coord", "COORD");
+            coordValue1.setattrvalue("C1", "2600000.000");
+            coordValue1.setattrvalue("C2", "1200000.000");
+
+            IomObject coordValue2 = multiCoordValue.addattrobj("coord", "COORD");
+            coordValue2.setattrvalue("C1", "2600010.000");
+            coordValue2.setattrvalue("C2", "1200000.000");
+
+            IomObject coordValue3 = multiCoordValue.addattrobj("coord", "COORD");
+            coordValue3.setattrvalue("C1", "2600010.000");
+            coordValue3.setattrvalue("C2", "1200010.000");
+        }
         
+        // Run
+        FlatGeobufWriter writer = null;
+        File file = new File(TEST_OUT,"wkt_point_Ok.parquet");
+        try {
+            writer = new FlatGeobufWriter(file);
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
+            writer.write(new ObjectEvent(inputObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch(IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if(writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer=null;
+            }
+        }
+
+        // Validate
+        Path resultFile = new Path(file.getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+      
+        GenericRecord record = reader.read();       
+        assertEquals(record.get("attrMPoint").toString(),"MULTIPOINT ((2600000 1200000), (2600010 1200000), (2600010 1200010))");
+                
+        GenericRecord nextRecord = reader.read();
+        assertNull(nextRecord);
+    }
+
+    @Test
+    public void wkt_linestring_Ok() throws IoxException, IOException {
+        // Prepare
+        Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         IomObject polylineValue=inputObj.addattrobj("attrLineString", "POLYLINE");
         {
             IomObject segments=polylineValue.addattrobj("sequence", "SEGMENTS");
@@ -58,11 +153,111 @@ public class ParquetWriterTest {
 
         // Run
         FlatGeobufWriter writer = null;
-        File file = new File(TEST_OUT,"attributes_Ok.parquet");
+        File file = new File(TEST_OUT,"wkt_linestring_Ok.parquet");
         try {
             writer = new FlatGeobufWriter(file);
-            Settings settings = new Settings();
-            //settings.setValue(FlatGeobufWriter.FEATURES_COUNT, "1");
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
+            writer.write(new ObjectEvent(inputObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch(IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if(writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer=null;
+            }
+        }
+
+        // Validate
+        Path resultFile = new Path(file.getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+      
+        GenericRecord record = reader.read();       
+        assertEquals(record.get("attrLineString").toString(),"LINESTRING (2600000 1200000, 2600010 1200000)");
+                
+        GenericRecord nextRecord = reader.read();
+        assertNull(nextRecord);
+    }
+
+    @Test
+    public void wkt_point_and_linestring_Ok() throws IoxException, IOException {
+        // Prepare
+        Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
+        IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
+        {
+            coordValue.setattrvalue("C1", "2600000.000");
+            coordValue.setattrvalue("C2", "1200000.000");
+        }
+        IomObject polylineValue=inputObj.addattrobj("attrLineString", "POLYLINE");
+        {
+            IomObject segments=polylineValue.addattrobj("sequence", "SEGMENTS");
+            IomObject coordStart=segments.addattrobj("segment", "COORD");
+            IomObject coordEnd=segments.addattrobj("segment", "COORD");
+            coordStart.setattrvalue("C1", "2600000.000");
+            coordStart.setattrvalue("C2", "1200000.000");
+            coordEnd.setattrvalue("C1", "2600010.000");
+            coordEnd.setattrvalue("C2", "1200000.000");            
+        }
+
+        // Run
+        FlatGeobufWriter writer = null;
+        File file = new File(TEST_OUT,"wkt_point_and_linestring_Ok.parquet");
+        try {
+            writer = new FlatGeobufWriter(file);
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
+            writer.write(new ObjectEvent(inputObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch(IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if(writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer=null;
+            }
+        }
+
+        // Validate
+        Path resultFile = new Path(file.getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+      
+        GenericRecord record = reader.read();       
+        assertEquals(record.get("attrPoint").toString(),"POINT ( 2600000.0 1200000.0 )");
+        assertEquals(record.get("attrLineString").toString(),"LINESTRING (2600000 1200000, 2600010 1200000)");
+                
+        GenericRecord nextRecord = reader.read();
+        assertNull(nextRecord);
+    }
+
+    @Test
+    public void attributes_no_description_set_Ok() throws IoxException, IOException {
+        // Prepare
+        Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
+        inputObj.setattrvalue("id1", "1");
+        inputObj.setattrvalue("aText", "text1");
+        inputObj.setattrvalue("aDouble", "53434.123");
+        IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
+        {
+            coordValue.setattrvalue("C1", "2600000.000");
+            coordValue.setattrvalue("C2", "1200000.000");
+        }
+        
+        // Run
+        FlatGeobufWriter writer = null;
+        File file = new File(TEST_OUT,"attributes_no_description_set_Ok.parquet");
+        try {
+            writer = new FlatGeobufWriter(file);
             writer.write(new StartTransferEvent());
             writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
             writer.write(new ObjectEvent(inputObj));
@@ -83,9 +278,15 @@ public class ParquetWriterTest {
         
         // Validate
         Path resultFile = new Path(file.getAbsolutePath());
-        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(resultFile).build();
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+      
+        GenericRecord record = reader.read();
+        assertEquals(record.get("id1").toString(),"1");
+        assertEquals(record.get("aText").toString(),"text1");
+        assertEquals(record.get("aDouble").toString(),"53434.123");
+                
         GenericRecord nextRecord = reader.read();
-
+        assertNull(nextRecord);
     }
     
 }

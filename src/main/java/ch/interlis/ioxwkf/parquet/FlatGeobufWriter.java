@@ -66,7 +66,6 @@ import ch.interlis.iox_j.jts.Iox2jtsException;
 import static java.nio.charset.CodingErrorAction.REPLACE;
 
 public class FlatGeobufWriter implements IoxWriter {
-
     private File outputFile;
     private ParquetWriter<GenericData.Record> writer = null;
         
@@ -289,6 +288,7 @@ public class FlatGeobufWriter implements IoxWriter {
     }
 
     // Beim Shapefile ist die Schlaufe über attrDescs
+    // Hier aber glaubs ok über schema.
     
     private GenericData.Record generateRecord(IomObject iomObj, Schema schema) throws Iox2jtsException {
         GenericData.Record record = new GenericData.Record(schema);
@@ -307,15 +307,29 @@ public class FlatGeobufWriter implements IoxWriter {
                 if (geomType.equalsIgnoreCase(this.COORD)) {
                     Coordinate geom = Iox2jts.coord2JTS(iomObj.getattrobj(attrName, 0));
                     attrValue = WKTWriter.toPoint(geom); 
+                } else if (geomType.equalsIgnoreCase(this.MULTICOORD)) { 
+                    MultiPoint geom = Iox2jts.multicoord2JTS(iomObj.getattrobj(attrName, 0));
+                    attrValue = geom.toText();                    
                 } else if (geomType.equalsIgnoreCase(this.POLYLINE)) {
                     LineString geom = Iox2jts.polyline2JTSlineString(iomObj.getattrobj(attrName, 0), false, 0);
+                    attrValue = geom.toText();
+                } else if (geomType.equalsIgnoreCase(this.MULTIPOLYLINE)) {
+                    MultiLineString geom = Iox2jts.multipolyline2JTS(iomObj.getattrobj(attrName, 0), 0);
+                    attrValue = geom.toText();
+                } else if (geomType.equalsIgnoreCase(this.MULTISURFACE)) {
+                    // TODO
+                    // Mir nicht ganz klar wie man Polygon/Multipolygon handelt.
+                    // Bei den Bindings kann man den Unterschied machen (im String-Modus aber auch nicht).
+                    MultiPolygon geom = Iox2jts.multisurface2JTS(iomObj.getattrobj(attrName, 0), 0, 2056); 
                     attrValue = geom.toText();
                 }
             }
             else {
                 attrValue = iomObj.getattrvalue(attrName);
             }
-                       
+                    
+            System.out.println("attrValue: " + attrValue);
+
             record.put(attrName, attrValue);
         }
         
@@ -351,11 +365,17 @@ public class FlatGeobufWriter implements IoxWriter {
                 // Für GeoParquet sehe es wohl wieder anders aus.
                 if (attrDesc.getBinding() == Point.class) {
                     fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.COORD));
-                } else if (attrDesc.getBinding() == LineString.class)  {
+                } else if (attrDesc.getBinding() == MultiPoint.class)  {
+                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.MULTICOORD));
+                } else if (attrDesc.getBinding() == LineString.class) {
                     fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.POLYLINE));
-                }
-                // else if ...  
-  
+                } else if (attrDesc.getBinding() == MultiLineString.class) {
+                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.MULTIPOLYLINE));
+                } else if (attrDesc.getBinding() == Polygon.class) {
+                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.MULTISURFACE)); // TODO
+                } else if (attrDesc.getBinding() == MultiPolygon.class) {
+                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.MULTISURFACE));
+                } 
             } else {
                 if (attrDesc.getBinding() == String.class) {
                     fieldNode.set("type", getStringType(false));
