@@ -1,6 +1,12 @@
 package ch.interlis.ioxwkf.parquet;
 
 import java.io.File;
+import java.io.IOException;
+
+import org.apache.avro.generic.GenericRecord;
+import org.apache.parquet.avro.AvroParquetReader;
+import org.apache.parquet.hadoop.ParquetReader;
+import org.apache.hadoop.fs.Path;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -27,7 +33,7 @@ public class ParquetWriterTest {
     }
 
     @Test
-    public void attributes_Ok() throws IoxException {
+    public void attributes_Ok() throws IoxException, IOException {
         // Prepare
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Point", "o1");
         inputObj.setattrvalue("id1", "1");
@@ -76,6 +82,9 @@ public class ParquetWriterTest {
         }
         
         // Validate
+        Path resultFile = new Path(file.getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(resultFile).build();
+        GenericRecord nextRecord = reader.read();
 
     }
     

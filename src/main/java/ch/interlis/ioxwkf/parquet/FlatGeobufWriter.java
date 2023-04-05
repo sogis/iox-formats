@@ -23,13 +23,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.wololo.flatgeobuf.ColumnMeta;
-import org.wololo.flatgeobuf.Constants;
-import org.wololo.flatgeobuf.HeaderMeta;
-import org.wololo.flatgeobuf.generated.ColumnType;
-import org.wololo.flatgeobuf.generated.Feature;
-import org.wololo.flatgeobuf.generated.GeometryType;
-import org.wololo.flatgeobuf.GeometryConversions;
 import org.locationtech.jts.geom.Envelope;
 
 import org.apache.avro.Schema;
@@ -73,15 +66,10 @@ import ch.interlis.iox_j.jts.Iox2jtsException;
 import static java.nio.charset.CodingErrorAction.REPLACE;
 
 public class FlatGeobufWriter implements IoxWriter {
-    public static final String FEATURES_COUNT = "ch.interlis.ioxwkf.flatgeobuf.featurescount";
 
-    private OutputStream outputStream;
     private File outputFile;
-    private FlatBufferBuilder builder;
     private ParquetWriter<GenericData.Record> writer = null;
-    
-    private HeaderMeta headerMeta = null;
-    
+        
     private Schema schema = null;
     private List<MyAttributeDescriptor> attrDescs = null;
 
