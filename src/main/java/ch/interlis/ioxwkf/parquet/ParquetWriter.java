@@ -18,13 +18,16 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Date;
 
 import org.locationtech.jts.geom.Envelope;
-
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
@@ -279,46 +282,38 @@ public class ParquetWriter implements IoxWriter {
     
     private GenericData.Record generateRecord(IomObject iomObj, Schema schema) throws Iox2jtsException {
         GenericData.Record record = new GenericData.Record(schema);
-
-        Iterator<Field> fieldi = schema.getFields().iterator();
-        while (fieldi.hasNext()) {
-            Field field = fieldi.next();
-            String attrName = field.name();
-            String attrValue = null;
-          
-            String geomType = field.getProp("geomtype");
-            System.out.println("geomType: " + geomType);
-            System.out.println("schema: " + field.schema());
-            
-            if (geomType != null) {
-                if (geomType.equalsIgnoreCase(this.COORD)) {
-                    Coordinate geom = Iox2jts.coord2JTS(iomObj.getattrobj(attrName, 0));
-                    attrValue = WKTWriter.toPoint(geom); 
-                } else if (geomType.equalsIgnoreCase(this.MULTICOORD)) { 
-                    MultiPoint geom = Iox2jts.multicoord2JTS(iomObj.getattrobj(attrName, 0));
-                    attrValue = geom.toText();                    
-                } else if (geomType.equalsIgnoreCase(this.POLYLINE)) {
-                    LineString geom = Iox2jts.polyline2JTSlineString(iomObj.getattrobj(attrName, 0), false, 0);
-                    attrValue = geom.toText();
-                } else if (geomType.equalsIgnoreCase(this.MULTIPOLYLINE)) {
-                    MultiLineString geom = Iox2jts.multipolyline2JTS(iomObj.getattrobj(attrName, 0), 0);
-                    attrValue = geom.toText();
-                } else if (geomType.equalsIgnoreCase(this.MULTISURFACE)) {
-                    // TODO
-                    // Mir nicht ganz klar wie man Polygon/Multipolygon handelt.
-                    // Bei den Bindings kann man den Unterschied machen (im String-Modus aber auch nicht).
-                    MultiPolygon geom = Iox2jts.multisurface2JTS(iomObj.getattrobj(attrName, 0), 0, 2056); 
-                    attrValue = geom.toText();
-                }
-            }
-            else {
-                
-                // TODO cast error.
-                // einfach machbar via Schema? Einfacher wohl wieder mit den attrDesc.
-                
+        
+        for (ParquetAttributeDescriptor attrDesc : attrDescs) {
+            String attrName = attrDesc.getAttributeName();
+            Object attrValue = null;
+            if (attrDesc.getBinding() == Point.class) {
+                Coordinate geom = Iox2jts.coord2JTS(iomObj.getattrobj(attrName, 0));
+                attrValue = WKTWriter.toPoint(geom); 
+            } else if (attrDesc.getBinding() == MultiPoint.class) {
+                MultiPoint geom = Iox2jts.multicoord2JTS(iomObj.getattrobj(attrName, 0));
+                attrValue = geom.toText();
+            } else if (attrDesc.getBinding() == LineString.class) {
+                LineString geom = Iox2jts.polyline2JTSlineString(iomObj.getattrobj(attrName, 0), false, 0);
+                attrValue = geom.toText();
+            } else if (attrDesc.getBinding() == MultiLineString.class) {
+                MultiLineString geom = Iox2jts.multipolyline2JTS(iomObj.getattrobj(attrName, 0), 0);
+                attrValue = geom.toText();
+            } else if (attrDesc.getBinding() == Polygon.class) {
+                Polygon geom = Iox2jts.surface2JTS(iomObj.getattrobj(attrName, 0), 0);
+                attrValue = geom.toText();
+            } else if (attrDesc.getBinding() == MultiPolygon.class) {
+                MultiPolygon geom = Iox2jts.multisurface2JTS(iomObj.getattrobj(attrName, 0), 0, 2056); 
+                attrValue = geom.toText();
+            } else if (attrDesc.getBinding() == String.class) {
                 attrValue = iomObj.getattrvalue(attrName);
+            } else if (attrDesc.getBinding() == Integer.class) {
+                attrValue = Integer.valueOf(iomObj.getattrvalue(attrName)).intValue();
+            } else if (attrDesc.getBinding() == Double.class) {
+                attrValue = Double.valueOf(iomObj.getattrvalue(attrName)).doubleValue();
+            } else if (attrDesc.getBinding() == LocalDate.class) {
+                LocalDate date = LocalDate.parse(iomObj.getattrvalue(attrName), DateTimeFormatter.ISO_LOCAL_DATE);
+                attrValue = Integer.valueOf((int) date.toEpochDay());
             }
-
             record.put(attrName, attrValue);
         }
         
@@ -330,43 +325,28 @@ public class ParquetWriter implements IoxWriter {
         List<Schema.Field> fields = new ArrayList<>();
 
         for (ParquetAttributeDescriptor attrDesc : attrDescs) {
+            Field field = null;
             if (attrDesc.isGeometry()) {
-                Field field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
-
-                // Das non-geo-parquet müsste im Schema den Geometrietyp nicht kennen.
-                // Die Umwandlung der Iox-Geometrie könnte anhand der Tags geschehen.
-                // Eigentlich ist die ganze Unterscheidung der Geometrien momentan
-                // gar nicht nötig (Gedanken nicht zu Ende geprüft).
-                // Für GeoParquet sehe es wohl wieder anders aus.
-                if (attrDesc.getBinding() == Point.class) {
-                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.COORD));
-                } else if (attrDesc.getBinding() == MultiPoint.class)  {
-                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.MULTICOORD));
-                } else if (attrDesc.getBinding() == LineString.class) {
-                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.POLYLINE));
-                } else if (attrDesc.getBinding() == MultiLineString.class) {
-                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.MULTIPOLYLINE));
-                } else if (attrDesc.getBinding() == Polygon.class) {
-                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.MULTISURFACE));
-                } else if (attrDesc.getBinding() == MultiPolygon.class) {
-                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.MULTISURFACE)); 
-                } 
-                fields.add(field);
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
+                // Mehr braucht es momentan nicht. Beim Record herstellen, loope ich nochmals über die AttributeDescriptions. Dort habe ich und brauche ich das Wissen über 
+                // den Geometrietyp für die Umwandlung nach WKT.
+            } else if (attrDesc.getBinding() == String.class) {
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
+            } else if (attrDesc.getBinding() == Integer.class) {
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.INT), Schema.create(Schema.Type.NULL)), null, null);
+            } else if (attrDesc.getBinding() == Double.class) {
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.DOUBLE), Schema.create(Schema.Type.NULL)), null, null);
+            } else if (attrDesc.getBinding() == LocalDate.class) {
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(new LogicalType("date").addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);
             } else {
-                Field field = null;
-                if (attrDesc.getBinding() == String.class) {
-                    field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
-                    //field = new Schema.Field(attrDesc.getAttributeName(), Schema.create(Schema.Type.STRING), null, null);
-                } else if (attrDesc.getBinding() == Integer.class) {
-                    field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.INT), Schema.create(Schema.Type.NULL)), null, null);
-                }
-
-                
-                
-                fields.add(field);
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
             }
-        }        
+            
+            fields.add(field);
+        }
         schema.setFields(fields);
+                
+        System.out.println(schema);
         return schema;
     }
             

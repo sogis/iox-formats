@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Date;
+import java.time.LocalDate;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.avro.AvroParquetReader;
@@ -60,11 +62,25 @@ public class ParquetWriterTest {
             attrDesc.setBinding(String.class);
             attrDescs.add(attrDesc);
         }
+        {
+            ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
+            attrDesc.setAttributeName("aDouble");
+            attrDesc.setBinding(Double.class);
+            attrDescs.add(attrDesc);
+        }
+        {
+            ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
+            attrDesc.setAttributeName("aDate");
+            attrDesc.setBinding(LocalDate.class);
+            attrDescs.add(attrDesc);
+        }
+
         
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         inputObj.setattrvalue("id1", "1");
         inputObj.setattrvalue("aText", "text1");
-//        inputObj.setattrvalue("aDouble", "53434.123");
+        inputObj.setattrvalue("aDouble", "53434.123");
+        inputObj.setattrvalue("aDate", "1977-09-23");
 //        IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
 //        {
 //            coordValue.setattrvalue("C1", "2600000.000");
@@ -95,6 +111,17 @@ public class ParquetWriterTest {
             }
         }
 
+        // Validate
+        Path resultFile = new Path(file.getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+      
+        GenericRecord record = reader.read();       
+        assertEquals(record.get("id1"), Integer.valueOf(1));
+        assertEquals(record.get("aText").toString(),"text1");
+        assertEquals(Double.valueOf(record.get("aDouble").toString()).doubleValue(),53434.123, 0.0001);
+     
+        GenericRecord nextRecord = reader.read();
+        assertNull(nextRecord);
     }
     
     
