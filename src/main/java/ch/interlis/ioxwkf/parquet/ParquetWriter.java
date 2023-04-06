@@ -220,27 +220,10 @@ public class ParquetWriter implements IoxWriter {
                                 }
                             } else {
                                 attrDesc.setBinding(String.class);
-
-//                                ColumnMeta column = new ColumnMeta();
-//                                column.name = attrName;
-//                                column.type = ColumnType.String;
-//                                columns.add(column);
-
-                                
                             }
                         }
                         attrDesc.setAttributeName(attrName);
                         attrDescs.add(attrDesc);
-
-                        
-//                        attributeBuilder.setName(attrName);
-//                        attributeBuilder.setMinOccurs(0);
-//                        attributeBuilder.setMaxOccurs(1);
-//                        attributeBuilder.setNillable(true);
-//                        //build the descriptor
-//                        String trimmedAttrName = trimAttributeName(attrName,9);
-//                        AttributeDescriptor descriptor = attributeBuilder.buildDescriptor(trimmedAttrName);                            
-//                        addAttrDesc(attrName, descriptor);  
                     }
                 }
             }
@@ -265,12 +248,7 @@ public class ParquetWriter implements IoxWriter {
                     throw new IoxException(e.getMessage());
                 }
             }
-            
-
-//                for (GenericData.Record record : recordList) {
-//                    writer.write(record);
-//                }
-                
+     
             GenericData.Record record = null;
             try {
                 record = generateRecord(iomObj, schema);
