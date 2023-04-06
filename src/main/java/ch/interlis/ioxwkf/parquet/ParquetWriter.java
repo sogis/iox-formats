@@ -100,7 +100,10 @@ public class ParquetWriter implements IoxWriter {
     private void init(File file, Settings settings) throws IoxException {
         //this.outputStream = new FileOutputStream(file);
         this.outputFile = file;
-        this.tableName = file.getName().replace(".fgb", ""); // TODO: ja...        
+    }
+    
+    public void setAttributeDescriptors(List<ParquetAttributeDescriptor> attrDescs) {
+        this.attrDescs = attrDescs;
     }
 
     @Override
@@ -269,6 +272,10 @@ public class ParquetWriter implements IoxWriter {
 
     // Beim Shapefile ist die Schlaufe über attrDescs
     // Hier aber glaubs ok über schema.
+    // MMMMh, wird kompliziert bei den normalen Datentypen. Schon nullable int ist ne Liste / Union.
+    // bei den logical types gute Nacht.
+    // Würde wohl auch mein Polygon- vs MultiPolygon-Problem lösen.
+    
     
     private GenericData.Record generateRecord(IomObject iomObj, Schema schema) throws Iox2jtsException {
         GenericData.Record record = new GenericData.Record(schema);
@@ -281,6 +288,7 @@ public class ParquetWriter implements IoxWriter {
           
             String geomType = field.getProp("geomtype");
             System.out.println("geomType: " + geomType);
+            System.out.println("schema: " + field.schema());
             
             if (geomType != null) {
                 if (geomType.equalsIgnoreCase(this.COORD)) {
@@ -304,6 +312,10 @@ public class ParquetWriter implements IoxWriter {
                 }
             }
             else {
+                
+                // TODO cast error.
+                // einfach machbar via Schema? Einfacher wohl wieder mit den attrDesc.
+                
                 attrValue = iomObj.getattrvalue(attrName);
             }
 
@@ -345,7 +357,12 @@ public class ParquetWriter implements IoxWriter {
                 if (attrDesc.getBinding() == String.class) {
                     field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
                     //field = new Schema.Field(attrDesc.getAttributeName(), Schema.create(Schema.Type.STRING), null, null);
-                } // TODO else if ?
+                } else if (attrDesc.getBinding() == Integer.class) {
+                    field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.INT), Schema.create(Schema.Type.NULL)), null, null);
+                }
+
+                
+                
                 fields.add(field);
             }
         }        

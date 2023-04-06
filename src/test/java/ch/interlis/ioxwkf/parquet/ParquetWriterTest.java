@@ -2,6 +2,8 @@ package ch.interlis.ioxwkf.parquet;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.avro.AvroParquetReader;
@@ -41,6 +43,64 @@ public class ParquetWriterTest {
     
     // Zukünftige Tests
     // - Falls nicht immer alle Felder optional/nullable sind, kann man das Verhalten auch testen. Es wird ein Fehler geworfen: "java.lang.RuntimeException: Null-value for required field: aText"
+    
+    @Test
+    public void attributes_description_set_Ok() throws IoxException, IOException {
+        // Prepare
+        List<ParquetAttributeDescriptor> attrDescs = new ArrayList<>();
+        {
+            ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
+            attrDesc.setAttributeName("id1");
+            attrDesc.setBinding(Integer.class);
+            attrDescs.add(attrDesc);
+        }
+        {
+            ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
+            attrDesc.setAttributeName("aText");
+            attrDesc.setBinding(String.class);
+            attrDescs.add(attrDesc);
+        }
+        
+        Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
+        inputObj.setattrvalue("id1", "1");
+        inputObj.setattrvalue("aText", "text1");
+//        inputObj.setattrvalue("aDouble", "53434.123");
+//        IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
+//        {
+//            coordValue.setattrvalue("C1", "2600000.000");
+//            coordValue.setattrvalue("C2", "1200000.000");
+//        }
+        
+        // Run
+        ParquetWriter writer = null;
+        File file = new File(TEST_OUT,"attributes_description_set_Ok.parquet");
+        try {
+            writer = new ParquetWriter(file);
+            writer.setAttributeDescriptors(attrDescs);
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
+            writer.write(new ObjectEvent(inputObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch(IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if(writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer=null;
+            }
+        }
+
+    }
+    
+    
+    
+    
+    
     
     @Test
     public void wkt_point_Ok() throws IoxException, IOException {
