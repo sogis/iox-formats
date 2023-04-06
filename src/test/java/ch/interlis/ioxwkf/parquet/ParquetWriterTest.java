@@ -107,7 +107,7 @@ public class ParquetWriterTest {
         
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"wkt_point_Ok.parquet");
+        File file = new File(TEST_OUT,"wkt_multipoint_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
@@ -308,7 +308,7 @@ public class ParquetWriterTest {
                 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"attributes_no_description_set_Ok.parquet");
+        File file = new File(TEST_OUT,"attributes_no_description_set_null_value_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
