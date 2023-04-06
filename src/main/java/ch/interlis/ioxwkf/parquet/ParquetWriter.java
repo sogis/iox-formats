@@ -70,7 +70,7 @@ public class ParquetWriter implements IoxWriter {
     private org.apache.parquet.hadoop.ParquetWriter<GenericData.Record> writer = null;
         
     private Schema schema = null;
-    private List<MyAttributeDescriptor> attrDescs = null;
+    private List<ParquetAttributeDescriptor> attrDescs = null;
 
     private TransferDescription td = null;
     private String iliGeomAttrName = null;
@@ -117,7 +117,7 @@ public class ParquetWriter implements IoxWriter {
             // Wenn null, dann gibt es noch kein "Schema"
 //            attrDescsMap
             if(attrDescs == null) {
-                attrDescs = new ArrayList<MyAttributeDescriptor>();
+                attrDescs = new ArrayList<ParquetAttributeDescriptor>();
                // initAttrDescs(); // TODO ? 
                 if(td != null) {
                     // TODO
@@ -127,7 +127,7 @@ public class ParquetWriter implements IoxWriter {
                         System.out.println(attrName);
                         //create the builder
 //                        AttributeTypeBuilder attributeBuilder = new AttributeTypeBuilder();
-                        MyAttributeDescriptor attrDesc = new MyAttributeDescriptor();
+                        ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
 
                         // Für was brauche ich dieses if/else? Verstehe es nicht.
                         // Bei GPKG scheint es das nicht zu geben.
@@ -164,7 +164,7 @@ public class ParquetWriter implements IoxWriter {
 //                                }
 //                            }
                         } else {   
-                            // Es wurde weder ein Modell gesetzt noch wurde die Struktur
+                            // Es wurde weder ein Modell gesetzt noch wurde das Schema
                             // mittel setAttrDescs definiert. -> Es wird aus dem ersten IomObject
                             // das Zielschema möglichst gut definiert. 
                             // Nachteile:
@@ -313,11 +313,11 @@ public class ParquetWriter implements IoxWriter {
         return record;
     }
     
-    private Schema createSchema(List<MyAttributeDescriptor> attrDescs) {
+    private Schema createSchema(List<ParquetAttributeDescriptor> attrDescs) {
         Schema schema = Schema.createRecord("myrecordname", null, "ch.so.agi.ioxwkf.parquet", false);
         List<Schema.Field> fields = new ArrayList<>();
 
-        for (MyAttributeDescriptor attrDesc : attrDescs) {
+        for (ParquetAttributeDescriptor attrDesc : attrDescs) {
             if (attrDesc.isGeometry()) {
                 Field field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
 
