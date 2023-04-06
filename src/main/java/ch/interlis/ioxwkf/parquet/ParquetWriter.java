@@ -30,7 +30,7 @@ import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetWriter;
-import org.apache.parquet.hadoop.ParquetWriter;
+//import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.OutputFile;
 import org.apache.hadoop.fs.Path;
@@ -65,9 +65,9 @@ import ch.interlis.iox_j.jts.Iox2jtsException;
 
 import static java.nio.charset.CodingErrorAction.REPLACE;
 
-public class FlatGeobufWriter implements IoxWriter {
+public class ParquetWriter implements IoxWriter {
     private File outputFile;
-    private ParquetWriter<GenericData.Record> writer = null;
+    private org.apache.parquet.hadoop.ParquetWriter<GenericData.Record> writer = null;
         
     private Schema schema = null;
     private List<MyAttributeDescriptor> attrDescs = null;
@@ -89,11 +89,11 @@ public class FlatGeobufWriter implements IoxWriter {
     
     private long featuresCount = 0;
 
-    public FlatGeobufWriter(File file) throws IoxException {
+    public ParquetWriter(File file) throws IoxException {
         this(file,null);
     }
     
-    public FlatGeobufWriter(File file, Settings settings) throws IoxException { 
+    public ParquetWriter(File file, Settings settings) throws IoxException { 
         init(file,settings);
     }
     
@@ -247,13 +247,15 @@ public class FlatGeobufWriter implements IoxWriter {
             if (schema == null) {
                 schema = createSchema(attrDescs);
                 
+                System.out.println(schema);
+                
                 Path path = new Path(outputFile.getAbsolutePath());
                 try {
                     writer = AvroParquetWriter.<GenericData.Record>builder(path)
                             .withSchema(schema)
                             .withCompressionCodec(CompressionCodecName.SNAPPY) // TODO was ist gut? Snappy ist was "natives" (ähnlich wie sqlite).
-                            .withRowGroupSize(ParquetWriter.DEFAULT_BLOCK_SIZE)
-                            .withPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
+                            .withRowGroupSize(org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE)
+                            .withPageSize(org.apache.parquet.hadoop.ParquetWriter.DEFAULT_PAGE_SIZE)
                             .withConf(new Configuration())
                             .withValidation(false)
                             .withDictionaryEncoding(false)
@@ -276,7 +278,7 @@ public class FlatGeobufWriter implements IoxWriter {
                 e.printStackTrace();
                 throw new IoxException(e.getMessage());
             }
-            System.out.println(record.toString());
+//            System.out.println(record.toString());
             try {
                 writer.write(record);
             } catch (IOException e) {
@@ -298,9 +300,8 @@ public class FlatGeobufWriter implements IoxWriter {
             Field field = fieldi.next();
             String attrName = field.name();
             String attrValue = null;
-
+          
             String geomType = field.getProp("geomtype");
-            
             System.out.println("geomType: " + geomType);
             
             if (geomType != null) {
@@ -327,8 +328,6 @@ public class FlatGeobufWriter implements IoxWriter {
             else {
                 attrValue = iomObj.getattrvalue(attrName);
             }
-                    
-            System.out.println("attrValue: " + attrValue);
 
             record.put(attrName, attrValue);
         }
@@ -337,70 +336,45 @@ public class FlatGeobufWriter implements IoxWriter {
     }
     
     private Schema createSchema(List<MyAttributeDescriptor> attrDescs) {
-        ObjectNode rootNode = JsonNodeFactory.instance.objectNode();
-        
-        JsonNode namespaceNode = JsonNodeFactory.instance.textNode("ch.so.agi.ioxwkf.parquet");
-        rootNode.set("namespace", namespaceNode);
+        Schema schema = Schema.createRecord("myrecordname", null, "ch.so.agi.ioxwkf.parquet", false);
+        List<Schema.Field> fields = new ArrayList<>();
 
-        JsonNode typeNode = JsonNodeFactory.instance.textNode("record");
-        rootNode.set("type", typeNode);
-        
-        JsonNode nameNode = JsonNodeFactory.instance.textNode("myrecordname"); // TODO ist aber egal
-        rootNode.set("name", nameNode);
-
-        ArrayNode fieldsNode = JsonNodeFactory.instance.arrayNode();
         for (MyAttributeDescriptor attrDesc : attrDescs) {
-            ObjectNode fieldNode = JsonNodeFactory.instance.objectNode();
-
-            JsonNode fieldNameNode = JsonNodeFactory.instance.textNode(attrDesc.getAttributeName()); 
-            fieldNode.set("name", fieldNameNode);
-
             if (attrDesc.isGeometry()) {
-                fieldNode.set("type", getStringType(false));
-                                
+                Field field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
+
                 // Das non-geo-parquet müsste im Schema den Geometrietyp nicht kennen.
                 // Die Umwandlung der Iox-Geometrie könnte anhand der Tags geschehen.
                 // Eigentlich ist die ganze Unterscheidung der Geometrien momentan
                 // gar nicht nötig (Gedanken nicht zu Ende geprüft).
                 // Für GeoParquet sehe es wohl wieder anders aus.
                 if (attrDesc.getBinding() == Point.class) {
-                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.COORD));
+                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.COORD));
                 } else if (attrDesc.getBinding() == MultiPoint.class)  {
-                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.MULTICOORD));
+                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.MULTICOORD));
                 } else if (attrDesc.getBinding() == LineString.class) {
-                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.POLYLINE));
+                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.POLYLINE));
                 } else if (attrDesc.getBinding() == MultiLineString.class) {
-                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.MULTIPOLYLINE));
+                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.MULTIPOLYLINE));
                 } else if (attrDesc.getBinding() == Polygon.class) {
-                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.MULTISURFACE)); // TODO
+                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.MULTISURFACE));
                 } else if (attrDesc.getBinding() == MultiPolygon.class) {
-                    fieldNode.set("geomtype", JsonNodeFactory.instance.textNode(this.MULTISURFACE));
+                    field.addProp("geomtype", JsonNodeFactory.instance.textNode(this.MULTISURFACE)); 
                 } 
+                fields.add(field);
             } else {
+                Field field = null;
                 if (attrDesc.getBinding() == String.class) {
-                    fieldNode.set("type", getStringType(false));
-                }
+                    field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
+                    //field = new Schema.Field(attrDesc.getAttributeName(), Schema.create(Schema.Type.STRING), null, null);
+                } // TODO else if ?
+                fields.add(field);
             }
-
-            fieldsNode.add(fieldNode);
-        }
-        rootNode.set("fields", fieldsNode);
-        
-        Schema.Parser parser = new Schema.Parser().setValidate(true);
-        return parser.parse(rootNode.toString());
+        }        
+        schema.setFields(fields);
+        return schema;
     }
-    
-    // TODO wohin? getType? getXXXType?
-    
-    private JsonNode getStringType(boolean isMandatory) {
-        ArrayNode arrayNode = JsonNodeFactory.instance.arrayNode();
-        arrayNode.add("string");
-        if (!isMandatory) {
-            arrayNode.add("null");
-        }
-        return arrayNode;
-    }
-        
+            
     @Override
     public void close() throws IoxException {
         try {

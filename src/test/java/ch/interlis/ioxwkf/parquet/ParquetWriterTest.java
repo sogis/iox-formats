@@ -39,6 +39,9 @@ public class ParquetWriterTest {
         new File(TEST_OUT).mkdirs();
     }
     
+    // Zukünftige Tests
+    // - Falls nicht immer alle Felder optional/nullable sind, kann man das Verhalten auch testen. Es wird ein Fehler geworfen: "java.lang.RuntimeException: Null-value for required field: aText"
+    
     @Test
     public void wkt_point_Ok() throws IoxException, IOException {
         // Prepare
@@ -50,10 +53,10 @@ public class ParquetWriterTest {
         }
 
         // Run
-        FlatGeobufWriter writer = null;
+        ParquetWriter writer = null;
         File file = new File(TEST_OUT,"wkt_point_Ok.parquet");
         try {
-            writer = new FlatGeobufWriter(file);
+            writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
             writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
             writer.write(new ObjectEvent(inputObj));
@@ -103,10 +106,10 @@ public class ParquetWriterTest {
         }
         
         // Run
-        FlatGeobufWriter writer = null;
+        ParquetWriter writer = null;
         File file = new File(TEST_OUT,"wkt_point_Ok.parquet");
         try {
-            writer = new FlatGeobufWriter(file);
+            writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
             writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
             writer.write(new ObjectEvent(inputObj));
@@ -152,10 +155,10 @@ public class ParquetWriterTest {
         }
 
         // Run
-        FlatGeobufWriter writer = null;
+        ParquetWriter writer = null;
         File file = new File(TEST_OUT,"wkt_linestring_Ok.parquet");
         try {
-            writer = new FlatGeobufWriter(file);
+            writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
             writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
             writer.write(new ObjectEvent(inputObj));
@@ -184,6 +187,10 @@ public class ParquetWriterTest {
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
     }
+    
+    
+    
+    
 
     @Test
     public void wkt_point_and_linestring_Ok() throws IoxException, IOException {
@@ -206,10 +213,10 @@ public class ParquetWriterTest {
         }
 
         // Run
-        FlatGeobufWriter writer = null;
+        ParquetWriter writer = null;
         File file = new File(TEST_OUT,"wkt_point_and_linestring_Ok.parquet");
         try {
-            writer = new FlatGeobufWriter(file);
+            writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
             writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
             writer.write(new ObjectEvent(inputObj));
@@ -254,10 +261,10 @@ public class ParquetWriterTest {
         }
         
         // Run
-        FlatGeobufWriter writer = null;
+        ParquetWriter writer = null;
         File file = new File(TEST_OUT,"attributes_no_description_set_Ok.parquet");
         try {
-            writer = new FlatGeobufWriter(file);
+            writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
             writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
             writer.write(new ObjectEvent(inputObj));
@@ -289,4 +296,55 @@ public class ParquetWriterTest {
         assertNull(nextRecord);
     }
     
+    @Test
+    public void attributes_no_description_set_null_value_Ok() throws IoxException, IOException {
+        // Prepare
+        Iom_jObject inputObj1 = new Iom_jObject("Test1.Topic1.Obj1", "o1");
+        inputObj1.setattrvalue("id1", "1");
+        inputObj1.setattrvalue("aText", "text1");            
+        
+        Iom_jObject inputObj2 = new Iom_jObject("Test1.Topic1.Obj1", "o2");
+        inputObj2.setattrvalue("id1", "2");
+                
+        // Run
+        ParquetWriter writer = null;
+        File file = new File(TEST_OUT,"attributes_no_description_set_Ok.parquet");
+        try {
+            writer = new ParquetWriter(file);
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
+            writer.write(new ObjectEvent(inputObj1));
+            writer.write(new ObjectEvent(inputObj2));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch(IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if(writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer=null;
+            }
+        }
+        
+        // Validate
+        Path resultFile = new Path(file.getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+      
+        GenericRecord record = reader.read();
+        assertEquals(record.get("id1").toString(),"1");
+        assertEquals(record.get("aText").toString(),"text1");
+
+        GenericRecord nextRecord = reader.read();
+        assertEquals(nextRecord.get("id1").toString(),"2");
+        assertNull(nextRecord.get("aText"));
+        
+        assertNull(reader.read());
+    }
+    
+    
+
 }
