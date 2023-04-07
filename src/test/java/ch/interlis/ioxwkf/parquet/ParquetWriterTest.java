@@ -48,15 +48,19 @@ public class ParquetWriterTest {
     
     @Test
     public void dummy() throws IOException {
-        Path resultFile = new Path(new File("/Users/stefan/Downloads/yellow_tripdata_2023-01.parquet").getAbsolutePath());
+        Path resultFile = new Path(new File("/Users/stefan/tmp/lineitem.parquet").getAbsolutePath());
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
       
         GenericRecord record = reader.read();     
         //System.out.println(record.getSchema());
-        System.out.println(record.getSchema().getField("tpep_pickup_datetime").schema());
+        System.out.println(record.getSchema().getField("l_shipdate").schema());
+        System.out.println(record.getSchema().getField("l_shipdate").schema().getDoc());
+        System.out.println(record.getSchema().getField("l_shipdate").schema().getObjectProps());
+        System.out.println(record.getSchema().getField("l_shipdate").schema().getType());
+        System.out.println(record.getSchema().getField("l_shipdate").schema().getLogicalType());
 
-        System.out.println(record.get("tpep_pickup_datetime"));
-        System.out.println(record.get("tpep_pickup_datetime").getClass());
+        System.out.println(record.get("l_shipdate"));
+        System.out.println(record.get("l_shipdate").getClass());
         
     }
     

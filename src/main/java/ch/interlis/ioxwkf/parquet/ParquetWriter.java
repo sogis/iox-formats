@@ -364,7 +364,7 @@ public class ParquetWriter implements IoxWriter {
 
                 //GenericData.Fixed fixed = new GenericData.Fixed(schema.getField(attrName).schema(), timestampBuffer);
 
-                attrValue = new Long(1672533130000000L);
+                //attrValue = new Long(1672533130000000L);
 
                 
             }
@@ -391,7 +391,27 @@ public class ParquetWriter implements IoxWriter {
             } else if (attrDesc.getBinding() == Double.class) {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.DOUBLE), Schema.create(Schema.Type.NULL)), null, null);
             } else if (attrDesc.getBinding() == LocalDate.class) {
-                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(new LogicalType("timestamp-micros").addToSchema(Schema.create(Schema.Type.LONG)), Schema.create(Schema.Type.NULL)), null, null);
+                org.apache.avro.LogicalTypes.Date dateType = LogicalTypes.date();
+                
+                
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(dateType.addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);
+                
+//                System.out.println(field.schema().get);
+//                System.out.println(field.schema().getDoc());
+//                System.out.println(field.schema().getObjectProps());
+//                System.out.println(field.schema().getType());
+//                System.out.println(field.schema().getLogicalType());
+                
+                for (Schema foo : field.schema().getTypes()) {
+                    System.out.println("****");
+                    System.out.println(foo);
+                    System.out.println(foo.getObjectProps());
+                    System.out.println(foo.getType());
+                    System.out.println(foo.getLogicalType());
+
+                }
+                
+                
             } else {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
             }
