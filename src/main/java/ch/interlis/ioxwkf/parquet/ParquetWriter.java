@@ -13,16 +13,22 @@ import java.nio.ByteOrder;
 import java.nio.CharBuffer;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.JulianFields;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.Date;
 
 import org.locationtech.jts.geom.Envelope;
@@ -30,13 +36,20 @@ import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
+import org.apache.avro.Schema.Type;
+import org.apache.parquet.schema.Type.Repetition;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroParquetWriter;
+import org.apache.parquet.avro.AvroWriteSupport;
 //import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.OutputFile;
+import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.hadoop.fs.Path;
+import org.apache.parquet.example.data.simple.NanoTime;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -80,13 +93,17 @@ public class ParquetWriter implements IoxWriter {
     
     private String tableName = null;
     
+    final long NANOS_PER_HOUR = TimeUnit.HOURS.toNanos(1);
+    final long NANOS_PER_MINUTE = TimeUnit.MINUTES.toNanos(1);
+    final long NANOS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
+
     // ili types
     private static final String COORD="COORD";
     private static final String MULTICOORD="MULTICOORD";
     private static final String POLYLINE="POLYLINE";
     private static final String MULTIPOLYLINE="MULTIPOLYLINE";
     private static final String MULTISURFACE="MULTISURFACE";
-
+    
     private Integer srsId = null;
     private Integer defaultSrsId = 2056; // TODO: null
     
@@ -240,12 +257,15 @@ public class ParquetWriter implements IoxWriter {
                 
                 Path path = new Path(outputFile.getAbsolutePath());
                 try {
+                    Configuration conf = new Configuration();
+                    //conf.setStrings(AvroWriteSupport.WRITE_FIXED_AS_INT96,  "aDate");
+
                     writer = AvroParquetWriter.<GenericData.Record>builder(path)
                             .withSchema(schema)
                             .withCompressionCodec(CompressionCodecName.SNAPPY) // TODO was ist gut? Snappy ist was "natives" (ähnlich wie sqlite).
                             .withRowGroupSize(org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE)
                             .withPageSize(org.apache.parquet.hadoop.ParquetWriter.DEFAULT_PAGE_SIZE)
-                            .withConf(new Configuration())
+                            .withConf(conf)
                             .withValidation(false)
                             .withDictionaryEncoding(false)
                             .build();
@@ -311,8 +331,42 @@ public class ParquetWriter implements IoxWriter {
             } else if (attrDesc.getBinding() == Double.class) {
                 attrValue = Double.valueOf(iomObj.getattrvalue(attrName)).doubleValue();
             } else if (attrDesc.getBinding() == LocalDate.class) {
-                LocalDate date = LocalDate.parse(iomObj.getattrvalue(attrName), DateTimeFormatter.ISO_LOCAL_DATE);
-                attrValue = Integer.valueOf((int) date.toEpochDay());
+                LocalDate localDate = LocalDate.parse(iomObj.getattrvalue(attrName), DateTimeFormatter.ISO_LOCAL_DATE);
+                attrValue = Integer.valueOf((int) localDate.toEpochDay());
+                //attrValue = Instant.now();
+                
+//                final LocalDate dateToday = LocalDate.now();
+//                final NanoTime nanoTime = new NanoTime((int)JulianFields.JULIAN_DAY.getFrom(dateToday), 0L); // TODO kommt aus einem example package... https://github.com/apache/parquet-mr/blob/master/parquet-column/src/main/java/org/apache/parquet/example/data/simple/NanoTime.java
+//                byte[] timestampBuffer = nanoTime.toBinary().getBytes();
+//                long nanos = nanoTime.getLong();
+
+//                ZonedDateTime zonedDateTime = localDate.atStartOfDay(ZoneId.systemDefault());
+//                Instant instant = zonedDateTime.toInstant();
+//                Date date = Date.from(instant);
+//                Calendar cal = Calendar.getInstance();
+//                cal.setTime(date);
+//
+//                int julianDays = (int) JulianFields.JULIAN_DAY.getFrom(localDate);
+//                long nanos = (cal.get(Calendar.HOUR_OF_DAY) * NANOS_PER_HOUR)
+//                        + (cal.get(Calendar.MINUTE) * NANOS_PER_MINUTE)
+//                        + (cal.get(Calendar.SECOND) * NANOS_PER_SECOND);
+//
+//                byte[] timestampBuffer = new byte[12];
+//                ByteBuffer buf = ByteBuffer.wrap(timestampBuffer);
+//                buf.order(ByteOrder.LITTLE_ENDIAN).putLong(nanos).putInt(julianDays);
+
+//                //byte[] timestampBuffer = new byte[12];
+//                ByteBuffer buf = ByteBuffer.wrap(timestampBuffer);
+//                buf.order(ByteOrder.LITTLE_ENDIAN).putLong(nanos).putInt((int)JulianFields.JULIAN_DAY.getFrom(dateToday));
+
+                // This is the properly encoded INT96 timestamp
+//                Binary tsValue = Binary.fromReusedByteArray(timestampBuffer);
+
+                //GenericData.Fixed fixed = new GenericData.Fixed(schema.getField(attrName).schema(), timestampBuffer);
+
+                attrValue = new Long(1672533130000000L);
+
+                
             }
             record.put(attrName, attrValue);
         }
@@ -337,7 +391,7 @@ public class ParquetWriter implements IoxWriter {
             } else if (attrDesc.getBinding() == Double.class) {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.DOUBLE), Schema.create(Schema.Type.NULL)), null, null);
             } else if (attrDesc.getBinding() == LocalDate.class) {
-                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(new LogicalType("date").addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(new LogicalType("timestamp-micros").addToSchema(Schema.create(Schema.Type.LONG)), Schema.create(Schema.Type.NULL)), null, null);
             } else {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
             }

@@ -47,6 +47,23 @@ public class ParquetWriterTest {
     // - Falls nicht immer alle Felder optional/nullable sind, kann man das Verhalten auch testen. Es wird ein Fehler geworfen: "java.lang.RuntimeException: Null-value for required field: aText"
     
     @Test
+    public void dummy() throws IOException {
+        Path resultFile = new Path(new File("/Users/stefan/Downloads/yellow_tripdata_2023-01.parquet").getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+      
+        GenericRecord record = reader.read();     
+        //System.out.println(record.getSchema());
+        System.out.println(record.getSchema().getField("tpep_pickup_datetime").schema());
+
+        System.out.println(record.get("tpep_pickup_datetime"));
+        System.out.println(record.get("tpep_pickup_datetime").getClass());
+        
+    }
+    
+    
+    
+    
+    @Test
     public void attributes_description_set_Ok() throws IoxException, IOException {
         // Prepare
         List<ParquetAttributeDescriptor> attrDescs = new ArrayList<>();
@@ -114,7 +131,7 @@ public class ParquetWriterTest {
         // Validate
         Path resultFile = new Path(file.getAbsolutePath());
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
-      
+              
         GenericRecord record = reader.read();       
         assertEquals(record.get("id1"), Integer.valueOf(1));
         assertEquals(record.get("aText").toString(),"text1");
@@ -122,6 +139,7 @@ public class ParquetWriterTest {
      
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
+        
     }
     
     
