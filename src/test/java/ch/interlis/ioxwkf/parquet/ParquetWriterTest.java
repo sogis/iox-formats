@@ -5,7 +5,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Date;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.avro.AvroParquetReader;
@@ -140,10 +143,16 @@ public class ParquetWriterTest {
         assertEquals(record.get("id1"), Integer.valueOf(1));
         assertEquals(record.get("aText").toString(),"text1");
         assertEquals(Double.valueOf(record.get("aDouble").toString()).doubleValue(),53434.123, 0.0001);
-     
-        GenericRecord nextRecord = reader.read();
-        assertNull(nextRecord);
         
+        System.out.println("aDate: " + record.get("aDate"));
+        
+        LocalDate resultDate = Instant.ofEpochSecond((int)record.get("aDate") * 24 * 60 *60 ).atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate expectedDate = LocalDate.parse("1977-09-23", DateTimeFormatter.ISO_LOCAL_DATE);
+        assertEquals(resultDate, expectedDate);
+
+
+        GenericRecord nextRecord = reader.read();
+        assertNull(nextRecord);        
     }
     
     

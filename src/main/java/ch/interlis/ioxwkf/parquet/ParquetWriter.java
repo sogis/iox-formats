@@ -258,8 +258,6 @@ public class ParquetWriter implements IoxWriter {
                 Path path = new Path(outputFile.getAbsolutePath());
                 try {
                     Configuration conf = new Configuration();
-                    //conf.setStrings(AvroWriteSupport.WRITE_FIXED_AS_INT96,  "aDate");
-
                     writer = AvroParquetWriter.<GenericData.Record>builder(path)
                             .withSchema(schema)
                             .withCompressionCodec(CompressionCodecName.SNAPPY) // TODO was ist gut? Snappy ist was "natives" (ähnlich wie sqlite).
@@ -333,40 +331,6 @@ public class ParquetWriter implements IoxWriter {
             } else if (attrDesc.getBinding() == LocalDate.class) {
                 LocalDate localDate = LocalDate.parse(iomObj.getattrvalue(attrName), DateTimeFormatter.ISO_LOCAL_DATE);
                 attrValue = Integer.valueOf((int) localDate.toEpochDay());
-                //attrValue = Instant.now();
-                
-//                final LocalDate dateToday = LocalDate.now();
-//                final NanoTime nanoTime = new NanoTime((int)JulianFields.JULIAN_DAY.getFrom(dateToday), 0L); // TODO kommt aus einem example package... https://github.com/apache/parquet-mr/blob/master/parquet-column/src/main/java/org/apache/parquet/example/data/simple/NanoTime.java
-//                byte[] timestampBuffer = nanoTime.toBinary().getBytes();
-//                long nanos = nanoTime.getLong();
-
-//                ZonedDateTime zonedDateTime = localDate.atStartOfDay(ZoneId.systemDefault());
-//                Instant instant = zonedDateTime.toInstant();
-//                Date date = Date.from(instant);
-//                Calendar cal = Calendar.getInstance();
-//                cal.setTime(date);
-//
-//                int julianDays = (int) JulianFields.JULIAN_DAY.getFrom(localDate);
-//                long nanos = (cal.get(Calendar.HOUR_OF_DAY) * NANOS_PER_HOUR)
-//                        + (cal.get(Calendar.MINUTE) * NANOS_PER_MINUTE)
-//                        + (cal.get(Calendar.SECOND) * NANOS_PER_SECOND);
-//
-//                byte[] timestampBuffer = new byte[12];
-//                ByteBuffer buf = ByteBuffer.wrap(timestampBuffer);
-//                buf.order(ByteOrder.LITTLE_ENDIAN).putLong(nanos).putInt(julianDays);
-
-//                //byte[] timestampBuffer = new byte[12];
-//                ByteBuffer buf = ByteBuffer.wrap(timestampBuffer);
-//                buf.order(ByteOrder.LITTLE_ENDIAN).putLong(nanos).putInt((int)JulianFields.JULIAN_DAY.getFrom(dateToday));
-
-                // This is the properly encoded INT96 timestamp
-//                Binary tsValue = Binary.fromReusedByteArray(timestampBuffer);
-
-                //GenericData.Fixed fixed = new GenericData.Fixed(schema.getField(attrName).schema(), timestampBuffer);
-
-                //attrValue = new Long(1672533130000000L);
-
-                
             }
             record.put(attrName, attrValue);
         }
@@ -392,26 +356,7 @@ public class ParquetWriter implements IoxWriter {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.DOUBLE), Schema.create(Schema.Type.NULL)), null, null);
             } else if (attrDesc.getBinding() == LocalDate.class) {
                 org.apache.avro.LogicalTypes.Date dateType = LogicalTypes.date();
-                
-                
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(dateType.addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);
-                
-//                System.out.println(field.schema().get);
-//                System.out.println(field.schema().getDoc());
-//                System.out.println(field.schema().getObjectProps());
-//                System.out.println(field.schema().getType());
-//                System.out.println(field.schema().getLogicalType());
-                
-                for (Schema foo : field.schema().getTypes()) {
-                    System.out.println("****");
-                    System.out.println(foo);
-                    System.out.println(foo.getObjectProps());
-                    System.out.println(foo.getType());
-                    System.out.println(foo.getLogicalType());
-
-                }
-                
-                
             } else {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
             }
@@ -419,8 +364,7 @@ public class ParquetWriter implements IoxWriter {
             fields.add(field);
         }
         schema.setFields(fields);
-                
-        System.out.println(schema);
+
         return schema;
     }
             
