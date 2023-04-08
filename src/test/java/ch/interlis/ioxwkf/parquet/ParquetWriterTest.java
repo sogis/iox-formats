@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Date;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
@@ -51,19 +53,31 @@ public class ParquetWriterTest {
     
     @Test
     public void dummy() throws IOException {
-        Path resultFile = new Path(new File("/Users/stefan/tmp/lineitem.parquet").getAbsolutePath());
+        //Path resultFile = new Path(new File("/Users/stefan/tmp/lineitem.parquet").getAbsolutePath());
+        Path resultFile = new Path(new File("/Users/stefan/Downloads/timestamp_table.parquet").getAbsolutePath());
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
       
         GenericRecord record = reader.read();     
         //System.out.println(record.getSchema());
-        System.out.println(record.getSchema().getField("l_shipdate").schema());
-        System.out.println(record.getSchema().getField("l_shipdate").schema().getDoc());
-        System.out.println(record.getSchema().getField("l_shipdate").schema().getObjectProps());
-        System.out.println(record.getSchema().getField("l_shipdate").schema().getType());
-        System.out.println(record.getSchema().getField("l_shipdate").schema().getLogicalType());
+        System.out.println(record.getSchema().getField("timestamp_col").schema());
+        System.out.println(record.getSchema().getField("timestamp_col").schema().getDoc());
+        System.out.println(record.getSchema().getField("timestamp_col").schema().getObjectProps());
+        System.out.println(record.getSchema().getField("timestamp_col").schema().getType());
+        System.out.println(record.getSchema().getField("timestamp_col").schema().getLogicalType());
 
-        System.out.println(record.get("l_shipdate"));
-        System.out.println(record.get("l_shipdate").getClass());
+        System.out.println(record.get("timestamp_col"));
+        System.out.println(record.get("timestamp_col").getClass());
+        
+        
+//        for (Schema foo : record.getSchema().getField("timestamp_col").schema().getTypes()) {
+//            System.out.println("****");
+//            System.out.println(foo);
+//            System.out.println(foo.getObjectProps());
+//            System.out.println(foo.getType());
+//            System.out.println(foo.getLogicalType());
+//
+//        }
+
         
     }
     
@@ -98,13 +112,19 @@ public class ParquetWriterTest {
             attrDesc.setBinding(LocalDate.class);
             attrDescs.add(attrDesc);
         }
-
+        {
+            ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
+            attrDesc.setAttributeName("aDatetime");
+            attrDesc.setBinding(LocalDateTime.class);
+            attrDescs.add(attrDesc);
+        }
         
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         inputObj.setattrvalue("id1", "1");
         inputObj.setattrvalue("aText", "text1");
         inputObj.setattrvalue("aDouble", "53434.123");
         inputObj.setattrvalue("aDate", "1977-09-23");
+        inputObj.setattrvalue("aDatetime", "1977-09-23T19:51:35.123");
 //        IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
 //        {
 //            coordValue.setattrvalue("C1", "2600000.000");

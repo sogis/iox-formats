@@ -20,8 +20,10 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.JulianFields;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -34,6 +36,12 @@ import java.util.Date;
 import org.locationtech.jts.geom.Envelope;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
+import org.apache.avro.LogicalTypes.LocalTimestampMicros;
+import org.apache.avro.LogicalTypes.LocalTimestampMillis;
+import org.apache.avro.LogicalTypes.TimeMicros;
+import org.apache.avro.LogicalTypes.TimeMillis;
+import org.apache.avro.LogicalTypes.TimestampMicros;
+import org.apache.avro.LogicalTypes.TimestampMillis;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -331,7 +339,31 @@ public class ParquetWriter implements IoxWriter {
             } else if (attrDesc.getBinding() == LocalDate.class) {
                 LocalDate localDate = LocalDate.parse(iomObj.getattrvalue(attrName), DateTimeFormatter.ISO_LOCAL_DATE);
                 attrValue = Integer.valueOf((int) localDate.toEpochDay());
+            } else if (attrDesc.getBinding() == LocalDateTime.class) {
+                LocalDateTime localDateTime = LocalDateTime.parse(iomObj.getattrvalue(attrName));
+                System.out.println("micros: " + attrValue);
+                
+                Long foo = (long) Instant.now().getNano();
+                System.out.println("micros now: " + Instant.now().getNano());
+                
+                System.out.println(ZoneId.systemDefault());
+                
+                
+                long diff = ChronoUnit.HOURS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
+                attrValue = /*(diff*60*60*1000*1000) + */Long.valueOf((long) localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()); 
+
+                
+                System.out.println("diff: " + diff*60*60*1000*1000);
+
+                //attrValue = 339206400000L;
             }
+            
+            
+            
+            else {
+                attrValue = iomObj.getattrvalue(attrName);
+            }
+            
             record.put(attrName, attrValue);
         }
         
@@ -356,8 +388,12 @@ public class ParquetWriter implements IoxWriter {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.DOUBLE), Schema.create(Schema.Type.NULL)), null, null);
             } else if (attrDesc.getBinding() == LocalDate.class) {
                 org.apache.avro.LogicalTypes.Date dateType = LogicalTypes.date();
-                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(dateType.addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);
-            } else {
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(dateType.addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);  
+            } else if (attrDesc.getBinding() == LocalDateTime.class) {
+                TimestampMillis datetimeType = LogicalTypes.timestampMillis();
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(datetimeType.addToSchema(Schema.create(Schema.Type.LONG)), Schema.create(Schema.Type.NULL)), null, null);
+            }
+            else {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
             }
             
@@ -365,6 +401,8 @@ public class ParquetWriter implements IoxWriter {
         }
         schema.setFields(fields);
 
+        System.out.println(schema);
+        
         return schema;
     }
             
