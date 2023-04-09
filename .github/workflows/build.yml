@@ -28,7 +28,7 @@ jobs:
           distribution: 'temurin'
           
       - name: Build with Gradle
-        run: ./gradlew clean build 
+        run: TZ=Europe/Zurich ./gradlew clean build 
 
       - uses: actions/upload-artifact@v2
         if: ${{ failure() }}

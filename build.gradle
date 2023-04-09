@@ -1,6 +1,16 @@
 plugins {
     id 'java-library'
+    id 'maven-publish'
+    id 'signing'
+    id "io.github.gradle-nexus.publish-plugin" version "1.0.0"
 }
+
+apply from: "$rootDir/gradle/versioning.gradle"
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+group = 'io.github.sogis'
 
 repositories {
     mavenCentral()
