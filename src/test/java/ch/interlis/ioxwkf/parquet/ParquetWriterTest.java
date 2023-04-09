@@ -141,11 +141,11 @@ public class ParquetWriterTest {
         inputObj.setattrvalue("aDatetime", "1977-09-23T19:51:35.123");
         inputObj.setattrvalue("aTime", "19:51:35.123");
         inputObj.setattrvalue("aBoolean", "true");
-//        IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
-//        {
-//            coordValue.setattrvalue("C1", "2600000.000");
-//            coordValue.setattrvalue("C2", "1200000.000");
-//        }
+        IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
+        {
+            coordValue.setattrvalue("C1", "2600000.000");
+            coordValue.setattrvalue("C2", "1200000.000");
+        }
         
         // Run
         ParquetWriter writer = null;
