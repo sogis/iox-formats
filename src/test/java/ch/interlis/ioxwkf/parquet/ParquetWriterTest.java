@@ -8,7 +8,9 @@ import java.util.Date;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 import org.apache.avro.Schema;
@@ -51,7 +53,7 @@ public class ParquetWriterTest {
     // Zukünftige Tests
     // - Falls nicht immer alle Felder optional/nullable sind, kann man das Verhalten auch testen. Es wird ein Fehler geworfen: "java.lang.RuntimeException: Null-value for required field: aText"
     
-    @Test
+    //@Test
     public void dummy() throws IOException {
         //Path resultFile = new Path(new File("/Users/stefan/tmp/lineitem.parquet").getAbsolutePath());
         Path resultFile = new Path(new File("/Users/stefan/Downloads/timestamp_table.parquet").getAbsolutePath());
@@ -118,6 +120,18 @@ public class ParquetWriterTest {
             attrDesc.setBinding(LocalDateTime.class);
             attrDescs.add(attrDesc);
         }
+        {
+            ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
+            attrDesc.setAttributeName("aTime");
+            attrDesc.setBinding(LocalTime.class);
+            attrDescs.add(attrDesc);
+        }
+        {
+            ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
+            attrDesc.setAttributeName("aBoolean");
+            attrDesc.setBinding(Boolean.class);
+            attrDescs.add(attrDesc);
+        }
         
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         inputObj.setattrvalue("id1", "1");
@@ -125,6 +139,8 @@ public class ParquetWriterTest {
         inputObj.setattrvalue("aDouble", "53434.123");
         inputObj.setattrvalue("aDate", "1977-09-23");
         inputObj.setattrvalue("aDatetime", "1977-09-23T19:51:35.123");
+        inputObj.setattrvalue("aTime", "19:51:35.123");
+        inputObj.setattrvalue("aBoolean", "true");
 //        IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
 //        {
 //            coordValue.setattrvalue("C1", "2600000.000");
@@ -164,21 +180,24 @@ public class ParquetWriterTest {
         assertEquals(record.get("aText").toString(),"text1");
         assertEquals(Double.valueOf(record.get("aDouble").toString()).doubleValue(),53434.123, 0.0001);
         
-        System.out.println("aDate: " + record.get("aDate"));
-        
-        LocalDate resultDate = Instant.ofEpochSecond((int)record.get("aDate") * 24 * 60 *60 ).atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate resultDate = Instant.ofEpochSecond((int)record.get("aDate") * 24 * 60 * 60).atZone(ZoneId.systemDefault()).toLocalDate();
         LocalDate expectedDate = LocalDate.parse("1977-09-23", DateTimeFormatter.ISO_LOCAL_DATE);
         assertEquals(resultDate, expectedDate);
+                
+        LocalDateTime resultDateTime = Instant.ofEpochMilli((long)record.get("aDatetime")).atZone(ZoneOffset.UTC).toLocalDateTime();
+        LocalDateTime expectedDateTime = LocalDateTime.parse("1977-09-23T18:51:35.123"); // Das "lokale" Datum wird nach UTC beim Schreiben umgewandelt. Ist kompliziert... Siehe Code.
+        assertEquals(resultDateTime, expectedDateTime);
+        
+        LocalTime resultTime = Instant.ofEpochMilli(((Number)record.get("aTime")).longValue()).atZone(ZoneOffset.UTC).toLocalTime();
+        LocalTime expectedTime = LocalTime.parse("18:51:35.123"); // Siehe datetime
+        assertEquals(resultTime, expectedTime);
 
+        Boolean resultBoolean = (Boolean) record.get("aBoolean");
+        assertTrue(resultBoolean);
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);        
     }
-    
-    
-    
-    
-    
     
     @Test
     public void wkt_point_Ok() throws IoxException, IOException {

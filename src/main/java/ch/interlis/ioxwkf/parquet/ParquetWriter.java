@@ -47,17 +47,23 @@ import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.parquet.schema.Type.Repetition;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.avro.AvroWriteSupport;
+import org.apache.parquet.hadoop.ParquetReader;
 //import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.OutputFile;
 import org.apache.parquet.io.api.Binary;
 import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.example.data.simple.NanoTime;
+import org.apache.parquet.format.LogicalTypes.TimeUnits;
+import org.apache.parquet.format.TimestampType;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -259,7 +265,12 @@ public class ParquetWriter implements IoxWriter {
                 }
             }
             if (schema == null) {
-                schema = createSchema(attrDescs);
+                try {
+                    schema = createSchema(attrDescs); // TODO nicht mehr nötig, zur wegen Lesen des Parquet files
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
                 
                 System.out.println(schema);
                 
@@ -299,13 +310,6 @@ public class ParquetWriter implements IoxWriter {
         }
     }
 
-    // Beim Shapefile ist die Schlaufe über attrDescs
-    // Hier aber glaubs ok über schema.
-    // MMMMh, wird kompliziert bei den normalen Datentypen. Schon nullable int ist ne Liste / Union.
-    // bei den logical types gute Nacht.
-    // Würde wohl auch mein Polygon- vs MultiPolygon-Problem lösen.
-    
-    
     private GenericData.Record generateRecord(IomObject iomObj, Schema schema) throws Iox2jtsException {
         GenericData.Record record = new GenericData.Record(schema);
         
@@ -340,22 +344,26 @@ public class ParquetWriter implements IoxWriter {
                 LocalDate localDate = LocalDate.parse(iomObj.getattrvalue(attrName), DateTimeFormatter.ISO_LOCAL_DATE);
                 attrValue = Integer.valueOf((int) localDate.toEpochDay());
             } else if (attrDesc.getBinding() == LocalDateTime.class) {
-                LocalDateTime localDateTime = LocalDateTime.parse(iomObj.getattrvalue(attrName));
-                System.out.println("micros: " + attrValue);
-                
-                Long foo = (long) Instant.now().getNano();
-                System.out.println("micros now: " + Instant.now().getNano());
-                
-                System.out.println(ZoneId.systemDefault());
-                
-                
-                long diff = ChronoUnit.HOURS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
-                attrValue = /*(diff*60*60*1000*1000) + */Long.valueOf((long) localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()); 
-
-                
-                System.out.println("diff: " + diff*60*60*1000*1000);
-
-                //attrValue = 339206400000L;
+                // https://stackoverflow.com/questions/75970956/write-parquet-file-with-local-timestamp-with-avro-schema
+                // Ich rechne alle Datetimes auf UTC zurück, in der Annahme, dass das Datetime im "systemDefault" 
+                // vorliegt.
+                // Apache Drill muss dann aber im mit der UTC-Zeitzone gestartet werden. Siehe drill-env.sh: export DRILL_JAVA_OPTS="$DRILL_JAVA_OPTS -Duser.timezone=UTC"
+                // Komisch ist einfach, dass Beispiel-Parquet-Files aus dem Apache Drill Quellcode Timestamps ohne TZ haben, z.B. timestamp-table.parquet.
+                // Aber sogar wenn ich dieses Field verwende bei meiner Schema-Definition, funktionierts nicht. 
+                LocalDateTime localDateTime = LocalDateTime.parse(iomObj.getattrvalue(attrName));   
+                long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));                
+                attrValue = Long.valueOf((long) localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()) - offset; 
+            } else if (attrDesc.getBinding() == LocalTime.class) {
+                // Auch wieder schön mühsam.
+                // Damit daylight saving time nich noch reinspielt, wird für die Berechnung des Offsets der Januar verwendet.
+                // Dafür funktioniert DuckDB nicht. Mit Microsekunden würde es funktionieren. Dann aber Apache Drill nicht.
+                LocalTime localTime = LocalTime.parse(iomObj.getattrvalue(attrName));
+                LocalDateTime localDateTime = LocalDateTime.parse("1970-01-01T12:00:00"); 
+                long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
+                int milliOfDay = (int) (localTime.toNanoOfDay() / 1_000_000);
+                attrValue = milliOfDay - offset;
+            } else if (attrDesc.getBinding() == Boolean.class) {
+                attrValue = Boolean.parseBoolean(iomObj.getattrvalue(attrName));
             }
             
             
@@ -370,7 +378,7 @@ public class ParquetWriter implements IoxWriter {
         return record;
     }
     
-    private Schema createSchema(List<ParquetAttributeDescriptor> attrDescs) {
+    private Schema createSchema(List<ParquetAttributeDescriptor> attrDescs) throws IOException {
         Schema schema = Schema.createRecord("myrecordname", null, "ch.so.agi.ioxwkf.parquet", false);
         List<Schema.Field> fields = new ArrayList<>();
 
@@ -391,7 +399,14 @@ public class ParquetWriter implements IoxWriter {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(dateType.addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);  
             } else if (attrDesc.getBinding() == LocalDateTime.class) {
                 TimestampMillis datetimeType = LogicalTypes.timestampMillis();
-                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(datetimeType.addToSchema(Schema.create(Schema.Type.LONG)), Schema.create(Schema.Type.NULL)), null, null);
+                String doc = "UTC based timestamp.";
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(datetimeType.addToSchema(Schema.create(Schema.Type.LONG)), Schema.create(Schema.Type.NULL)), doc, null);
+            } else if (attrDesc.getBinding() == LocalTime.class) {
+                TimeMillis timeType = LogicalTypes.timeMillis();
+                String doc = "UTC based time.";
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(timeType.addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), doc, null);
+            } else if (attrDesc.getBinding() == Boolean.class) {
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.BOOLEAN), Schema.create(Schema.Type.NULL)), null, null);
             }
             else {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
