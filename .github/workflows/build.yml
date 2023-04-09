@@ -43,6 +43,7 @@ jobs:
         run: |
           echo "${{secrets.SIGNING_SECRET_KEY_RING_FILE}}" > ~/.gradle/sonatype_upload.gpg.b64
           base64 -d ~/.gradle/sonatype_upload.gpg.b64 > ~/.gradle/sonatype_upload.gpg
+          cat ~/.gradle/sonatype_upload.gpg
 
       # - name: Decode key ring file
       #   if: ${{ success() && github.ref == 'refs/heads/main'}}
