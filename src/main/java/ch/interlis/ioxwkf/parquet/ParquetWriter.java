@@ -1,76 +1,29 @@
 package ch.interlis.ioxwkf.parquet;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.CharBuffer;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.time.OffsetTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.JulianFields;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.Date;
 
-import org.locationtech.jts.geom.Envelope;
-import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
-import org.apache.avro.LogicalTypes.LocalTimestampMicros;
-import org.apache.avro.LogicalTypes.LocalTimestampMillis;
-import org.apache.avro.LogicalTypes.TimeMicros;
 import org.apache.avro.LogicalTypes.TimeMillis;
-import org.apache.avro.LogicalTypes.TimestampMicros;
 import org.apache.avro.LogicalTypes.TimestampMillis;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
-import org.apache.avro.Schema.Type;
-import org.apache.parquet.schema.Type.Repetition;
 import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.avro.AvroParquetWriter;
-import org.apache.parquet.avro.AvroWriteSupport;
-import org.apache.parquet.hadoop.ParquetReader;
-//import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
-import org.apache.parquet.hadoop.util.HadoopInputFile;
-import org.apache.parquet.io.OutputFile;
-import org.apache.parquet.io.api.Binary;
-import org.apache.parquet.schema.PrimitiveType;
-import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.hadoop.fs.Path;
-import org.apache.parquet.example.data.simple.NanoTime;
-import org.apache.parquet.format.LogicalTypes.TimeUnits;
-import org.apache.parquet.format.TimestampType;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.BooleanNode;
-import com.google.flatbuffers.FlatBufferBuilder;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.MultiLineString;
@@ -93,8 +46,6 @@ import ch.interlis.iox.StartTransferEvent;
 import ch.interlis.iox_j.jts.Iox2jts;
 import ch.interlis.iox_j.jts.Iox2jtsException;
 
-import static java.nio.charset.CodingErrorAction.REPLACE;
-
 public class ParquetWriter implements IoxWriter {
     private File outputFile;
     private org.apache.parquet.hadoop.ParquetWriter<GenericData.Record> writer = null;
@@ -105,7 +56,6 @@ public class ParquetWriter implements IoxWriter {
     private TransferDescription td = null;
     private String iliGeomAttrName = null;
     
-    private String tableName = null;
     
     final long NANOS_PER_HOUR = TimeUnit.HOURS.toNanos(1);
     final long NANOS_PER_MINUTE = TimeUnit.MINUTES.toNanos(1);
@@ -120,8 +70,6 @@ public class ParquetWriter implements IoxWriter {
     
     private Integer srsId = null;
     private Integer defaultSrsId = 2056; // TODO: null
-    
-    private long featuresCount = 0;
 
     public ParquetWriter(File file) throws IoxException {
         this(file,null);
@@ -155,7 +103,6 @@ public class ParquetWriter implements IoxWriter {
 //            attrDescsMap
             if(attrDescs == null) {
                 attrDescs = new ArrayList<ParquetAttributeDescriptor>();
-               // initAttrDescs(); // TODO ? 
                 if(td != null) {
                     // TODO
                 } else {
@@ -163,101 +110,55 @@ public class ParquetWriter implements IoxWriter {
                         String attrName = iomObj.getattrname(u);
                         System.out.println(attrName);
                         //create the builder
-//                        AttributeTypeBuilder attributeBuilder = new AttributeTypeBuilder();
                         ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
-
-                        // Für was brauche ich dieses if/else? Verstehe es nicht.
-                        // Bei GPKG scheint es das nicht zu geben.
                         
-                        //if(attrName.equals(iliGeomAttrName)) {
-                        if(attrName.equals("gaga")) {
-
-//                            iliGeomAttrName=attrName;
-//                            IomObject iomGeom=iomObj.getattrobj(attrName,0);
-//                            if (iomGeom != null){
-//                                if (iomGeom.getobjecttag().equals(COORD)){
-//                                    attributeBuilder.setBinding(Point.class);
-//                                }else if (iomGeom.getobjecttag().equals(MULTICOORD)){
-//                                    attributeBuilder.setBinding(MultiPoint.class);
-//                                }else if(iomGeom.getobjecttag().equals(POLYLINE)){
-//                                    attributeBuilder.setBinding(LineString.class);
-//                                }else if (iomGeom.getobjecttag().equals(MULTIPOLYLINE)){
-//                                    attributeBuilder.setBinding(MultiLineString.class);
-//                                }else if (iomGeom.getobjecttag().equals(MULTISURFACE)){
-//                                    int surfaceCount=iomGeom.getattrvaluecount("surface");
-//                                    if(surfaceCount<=1) {
-//                                        /* Weil der Featuretype (das Schema) des Shapefiles anhand des ersten IomObjektes erstellt wird, 
-//                                         * kann es vorkommen, dass Multisurfaces mit mehr als einer Surface nicht zu einem Multipolygon umgewandelt werden, 
-//                                         * sondern zu einem Polygon. Aus diesem Grund wird immer das MultiPolygon-Binding verwendet. */
-//                                        attributeBuilder.setBinding(MultiPolygon.class);
-//                                    }else if(surfaceCount>1){
-//                                        attributeBuilder.setBinding(MultiPolygon.class);
-//                                    }
-//                                }else {
-//                                    attributeBuilder.setBinding(Point.class);
-//                                }
-//                                if(defaultSrsId!=null) {
-//                                    attributeBuilder.setCRS(createCrs(defaultSrsId));
-//                                }
-//                            }
-                        } else {   
-                            // Es wurde weder ein Modell gesetzt noch wurde das Schema
-                            // mittel setAttrDescs definiert. -> Es wird aus dem ersten IomObject
-                            // das Zielschema möglichst gut definiert. 
-                            // Nachteile:
-                            // - Geometrie aus Struktur eruieren ... siehe Kommentar wegen anderen Strukturen. Kann eventuell abgefedert werden.
-                            // - Wenn das erste Element fehlende Attribute hat (also NULL-Werte) gehen diese Attribute bei der Schemadefinition
-                            // verloren.
-                            
-                            
-                            // TODO: Eigentlich könnte ich gleich das Schema machen, aber da diese nicht so gleich gut geht wie bei Geotools-Shapefile,
-                            // doch eher Umweg über einen AttributeDescriptor?!
-                            
-                            
-                            // TODO: Umgang mit mehreren Geometrien klären. Sowieso: muss ich im non-geo-parquet iliGeomAttrName mitschleppen?
-                            
-                            // Ist das nicht relativ heikel?
-                            // Funktioniert mit Strukturen nicht mehr, oder? Wegen getattrvaluecount?
-                            // TODO: testen
-                            //if (iliGeomAttrName==null && iomObj.getattrvaluecount(attrName)>0 && iomObj.getattrobj(attrName,0) != null) {
-                            if (iomObj.getattrvaluecount(attrName)>0 && iomObj.getattrobj(attrName,0) != null) {
-                                //iliGeomAttrName = attrName;
-                                System.out.println("geometry found");
-                                IomObject iomGeom = iomObj.getattrobj(attrName,0);
-                                if (iomGeom != null) {
-                                    if (iomGeom.getobjecttag().equals(COORD)) {
-                                        attrDesc.setBinding(Point.class);
-                                    } else if (iomGeom.getobjecttag().equals(MULTICOORD)) {
-                                        attrDesc.setBinding(MultiPoint.class);
-                                    } else if (iomGeom.getobjecttag().equals(POLYLINE)) {
-                                        attrDesc.setBinding(LineString.class);
-                                    } else if (iomGeom.getobjecttag().equals(MULTIPOLYLINE)) {
-                                        attrDesc.setBinding(MultiLineString.class);
-                                    } else if (iomGeom.getobjecttag().equals(MULTISURFACE)) {
-                                        int surfaceCount=iomGeom.getattrvaluecount("surface");
-                                        if(surfaceCount==1) {
-                                            /* Weil das "Schema" anhand des ersten IomObjektes erstellt wird, 
-                                             * kann es vorkommen, dass Multisurfaces mit mehr als einer Surface nicht zu einem Multipolygon umgewandelt werden, 
-                                             * sondern zu einem Polygon. Aus diesem Grund wird immer das MultiPolygon-Binding verwendet. */
-                                            attrDesc.setBinding(MultiPolygon.class);
-                                        } else if (surfaceCount>1) {
-                                            attrDesc.setBinding(MultiPolygon.class);
-                                        }
-                                    } else {
-                                        // Siehe Kommentar oben. Ist das sinnvoll? Resp funktioniert das wenn es andere Strukturen gibt? Diese könnten man nach JSON 
-                                        // umwandeln und als String behandeln.
-                                        // Was passiert in der Logik, falls keine Geometrie gesetzt ist? 
-                                        
-                                        attrDesc.setBinding(Point.class);
+                        // Es wurde weder ein Modell gesetzt noch wurde das Schema
+                        // mittel setAttrDescs definiert. -> Es wird aus dem ersten IomObject
+                        // das Zielschema möglichst gut definiert. 
+                        // Nachteile:
+                        // - Geometrie aus Struktur eruieren ... siehe Kommentar wegen anderen Strukturen. Kann eventuell abgefedert werden.
+                        // - Wenn das erste Element fehlende Attribute hat (also NULL-Werte) gehen diese Attribute bei der Schemadefinition
+                        // verloren.
+                        
+                        // Ist das nicht relativ heikel?
+                        // Funktioniert mit Strukturen nicht mehr, oder? Wegen getattrvaluecount?
+                        // TODO: testen
+                        if (iomObj.getattrvaluecount(attrName)>0 && iomObj.getattrobj(attrName,0) != null) {
+//                            System.out.println("geometry found");
+                            IomObject iomGeom = iomObj.getattrobj(attrName,0);
+                            if (iomGeom != null) {
+                                if (iomGeom.getobjecttag().equals(COORD)) {
+                                    attrDesc.setBinding(Point.class);
+                                } else if (iomGeom.getobjecttag().equals(MULTICOORD)) {
+                                    attrDesc.setBinding(MultiPoint.class);
+                                } else if (iomGeom.getobjecttag().equals(POLYLINE)) {
+                                    attrDesc.setBinding(LineString.class);
+                                } else if (iomGeom.getobjecttag().equals(MULTIPOLYLINE)) {
+                                    attrDesc.setBinding(MultiLineString.class);
+                                } else if (iomGeom.getobjecttag().equals(MULTISURFACE)) {
+                                    int surfaceCount=iomGeom.getattrvaluecount("surface");
+                                    if(surfaceCount==1) {
+                                        /* Weil das "Schema" anhand des ersten IomObjektes erstellt wird, 
+                                         * kann es vorkommen, dass Multisurfaces mit mehr als einer Surface nicht zu einem Multipolygon umgewandelt werden, 
+                                         * sondern zu einem Polygon. Aus diesem Grund wird immer das MultiPolygon-Binding verwendet. */
+                                        attrDesc.setBinding(MultiPolygon.class);
+                                    } else if (surfaceCount>1) {
+                                        attrDesc.setBinding(MultiPolygon.class);
                                     }
-                                    if (defaultSrsId != null) {
-                                        attrDesc.setSrId(defaultSrsId);
-                                    }
-                                    attrDesc.setGeometry(true);
+                                } else {
+                                    // Siehe Kommentar oben. Ist das sinnvoll? Resp funktioniert das wenn es andere Strukturen gibt? Diese könnten man nach JSON 
+                                    // umwandeln und als String behandeln.
+                                    // Was passiert in der Logik, falls keine Geometrie gesetzt ist? 
+                                    
+                                    attrDesc.setBinding(Point.class);
                                 }
-                            } else {
-                                attrDesc.setBinding(String.class);
+                                if (defaultSrsId != null) {
+                                    attrDesc.setSrId(defaultSrsId);
+                                }
+                                attrDesc.setGeometry(true);
                             }
+                        } else {
+                            attrDesc.setBinding(String.class);
                         }
                         attrDesc.setAttributeName(attrName);
                         attrDescs.add(attrDesc);
@@ -265,14 +166,7 @@ public class ParquetWriter implements IoxWriter {
                 }
             }
             if (schema == null) {
-                try {
-                    schema = createSchema(attrDescs); // TODO nicht mehr nötig, zur wegen Lesen des Parquet files
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-                
-                System.out.println(schema);
+                schema = createSchema(attrDescs);
                 
                 Path path = new Path(outputFile.getAbsolutePath());
                 try {
@@ -299,14 +193,12 @@ public class ParquetWriter implements IoxWriter {
                 e.printStackTrace();
                 throw new IoxException(e.getMessage());
             }
-//            System.out.println(record.toString());
             try {
                 writer.write(record);
             } catch (IOException e) {
                 e.printStackTrace();
                 throw new IoxException(e.getMessage());
             }
-
         }
     }
 
@@ -364,10 +256,7 @@ public class ParquetWriter implements IoxWriter {
                 attrValue = milliOfDay - offset;
             } else if (attrDesc.getBinding() == Boolean.class) {
                 attrValue = Boolean.parseBoolean(iomObj.getattrvalue(attrName));
-            }
-            
-            
-            
+            } 
             else {
                 attrValue = iomObj.getattrvalue(attrName);
             }
@@ -378,7 +267,7 @@ public class ParquetWriter implements IoxWriter {
         return record;
     }
     
-    private Schema createSchema(List<ParquetAttributeDescriptor> attrDescs) throws IOException {
+    private Schema createSchema(List<ParquetAttributeDescriptor> attrDescs) {
         Schema schema = Schema.createRecord("myrecordname", null, "ch.so.agi.ioxwkf.parquet", false);
         List<Schema.Field> fields = new ArrayList<>();
 
@@ -415,8 +304,6 @@ public class ParquetWriter implements IoxWriter {
             fields.add(field);
         }
         schema.setFields(fields);
-
-        System.out.println(schema);
         
         return schema;
     }

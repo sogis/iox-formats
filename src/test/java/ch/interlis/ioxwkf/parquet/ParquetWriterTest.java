@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Date;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,6 +35,8 @@ import ch.interlis.iox_j.EndTransferEvent;
 import ch.interlis.iox_j.ObjectEvent;
 import ch.interlis.iox_j.StartBasketEvent;
 import ch.interlis.iox_j.StartTransferEvent;
+
+import com.vividsolutions.jts.geom.Point;
 
 public class ParquetWriterTest {
     
@@ -83,9 +84,6 @@ public class ParquetWriterTest {
         
     }
     
-    
-    
-    
     @Test
     public void attributes_description_set_Ok() throws IoxException, IOException {
         // Prepare
@@ -132,7 +130,13 @@ public class ParquetWriterTest {
             attrDesc.setBinding(Boolean.class);
             attrDescs.add(attrDesc);
         }
-        
+        {
+            ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
+            attrDesc.setAttributeName("attrPoint");
+            attrDesc.setBinding(Point.class);
+            attrDescs.add(attrDesc);
+        }
+
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         inputObj.setattrvalue("id1", "1");
         inputObj.setattrvalue("aText", "text1");
@@ -194,6 +198,8 @@ public class ParquetWriterTest {
 
         Boolean resultBoolean = (Boolean) record.get("aBoolean");
         assertTrue(resultBoolean);
+
+        assertEquals(record.get("attrPoint").toString(),"POINT ( 2600000.0 1200000.0 )");
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);        
