@@ -35,3 +35,62 @@ dependencies {
     implementation 'org.apache.parquet:parquet-avro:1.12.3'
     implementation 'org.apache.avro:avro:1.11.1'
 }
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+javadoc.failOnError = false
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+
+            pom {
+                name = "ilivalidator-custom-functions"
+                url = "https://github.com/sogis/ilivalidator-custom-functions"
+                description = "ilivalidator-custom-functions"
+                scm {
+                    connection = "scm:git:https@github.com/sogis/ilivalidator-custom-functions"
+                    developerConnection = "scm:git:https@github.com/sogis/ilivalidator-custom-functions"
+                    url = "https://github.com/sogis/ilivalidator-custom-functions"
+                }
+                licenses {
+                    license {
+                        name = "MIT"
+                        url = "https://github.com/sogis/ilivalidator-custom-functions/blob/master/LICENSE"
+                    }
+                }
+                developers {
+                    developer {
+                        id = "edigonzales"
+                        name = "Stefan Ziegler"
+                    }
+                }
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenJava
+}
+
+nexusPublishing {
+    repositories {
+        sonatype { 
+            nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
+            username = findProperty("ossrhUsername") ?: System.getenv("OSSRH_USERNAME")
+            password = findProperty("ossrhPassword") ?: System.getenv("OSSRH_PASSWORD")
+        }
+    }
+}
