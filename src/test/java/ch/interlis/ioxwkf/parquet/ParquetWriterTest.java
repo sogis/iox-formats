@@ -824,7 +824,4 @@ public class ParquetWriterTest {
 
         assertNull(reader.read());
     }
-
-
-
 }
