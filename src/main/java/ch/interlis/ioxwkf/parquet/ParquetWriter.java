@@ -99,12 +99,17 @@ public class ParquetWriter implements IoxWriter {
             String tag = iomObj.getobjecttag();
             System.out.println("tag: " + tag);
 
-            // Wenn null, dann gibt es noch kein "Schema"
-//            attrDescsMap
+            // Wenn null, dann gibt es noch kein "Schema".
             if(attrDescs == null) {
                 attrDescs = new ArrayList<ParquetAttributeDescriptor>();
                 if(td != null) {
                     // TODO
+                    
+                    
+                    
+                    
+                    
+                    
                 } else {
                     for(int u=0;u<iomObj.getattrcount();u++) {
                         String attrName = iomObj.getattrname(u);
@@ -247,7 +252,7 @@ public class ParquetWriter implements IoxWriter {
                 attrValue = Long.valueOf((long) localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()) - offset; 
             } else if (attrDesc.getBinding() == LocalTime.class) {
                 // Auch wieder schön mühsam.
-                // Damit daylight saving time nich noch reinspielt, wird für die Berechnung des Offsets der Januar verwendet.
+                // Damit daylight saving time nicht noch reinspielt, wird für die Berechnung des Offsets der Januar verwendet.
                 // Dafür funktioniert DuckDB nicht. Mit Microsekunden würde es funktionieren. Dann aber Apache Drill nicht.
                 LocalTime localTime = LocalTime.parse(iomObj.getattrvalue(attrName));
                 LocalDateTime localDateTime = LocalDateTime.parse("1970-01-01T12:00:00"); 
