@@ -97,7 +97,7 @@ public class ParquetWriterTest {
 
    
     @Test
-    public void model_set_Ok() throws Ili2cFailure, IoxException {
+    public void model_set_Ok() throws Ili2cFailure, IoxException, IOException {
         // Prepare
         TransferDescription td = compileModel("Test1.ili");
         System.out.println(td.toString());
@@ -135,11 +135,35 @@ public class ParquetWriterTest {
             }
         }
 
-        
+        // Validate
+        Path resultFile = new Path(file.getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+
+        GenericRecord record = reader.read();
+        assertEquals(Integer.valueOf(1), record.get("id1"));
+        assertEquals("text1", record.get("aText").toString());
+        assertEquals(53434.123, Double.valueOf(record.get("aDouble").toString()).doubleValue(), 0.0001);
+
+        LocalDate resultDate = Instant.ofEpochSecond((int)record.get("aDate") * 24 * 60 * 60).atZone(ZoneId.systemDefault()).toLocalDate();
+        LocalDate expectedDate = LocalDate.parse("1977-09-23", DateTimeFormatter.ISO_LOCAL_DATE);
+        assertEquals(expectedDate, resultDate);
+
+        // FIXME Falls parquet-avro fix i.O. (auch atZone muss nach systemDefault geändert werden).
+        LocalDateTime resultDateTime = Instant.ofEpochMilli((long)record.get("aDatetime")).atZone(ZoneOffset.UTC).toLocalDateTime();
+        LocalDateTime expectedDateTime = LocalDateTime.parse("1977-09-23T18:51:35.123"); // Das "lokale" Datum wird nach UTC beim Schreiben umgewandelt. Ist kompliziert... Siehe Code.
+        System.out.println("expectedDateTime: "  + expectedDateTime);
+        assertEquals(expectedDateTime, resultDateTime);
+
+        LocalTime resultTime = Instant.ofEpochMilli(((Number)record.get("aTime")).longValue()).atZone(ZoneOffset.UTC).toLocalTime();
+        LocalTime expectedTime = LocalTime.parse("18:51:35.123"); // Siehe datetime
+        assertEquals(expectedTime, resultTime);
+
+        Boolean resultBoolean = (Boolean) record.get("aBoolean");
+        assertTrue(resultBoolean);
+
+        GenericRecord nextRecord = reader.read();
+        assertNull(nextRecord);        
     }
-    
-    
-    
 
     @Test
     public void attributes_description_set_Ok() throws IoxException, IOException {
@@ -237,29 +261,31 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("id1"), Integer.valueOf(1));
-        assertEquals(record.get("aText").toString(),"text1");
-        assertEquals(Double.valueOf(record.get("aDouble").toString()).doubleValue(),53434.123, 0.0001);
+        assertEquals(Integer.valueOf(1), record.get("id1"));
+        assertEquals("text1", record.get("aText").toString());
+        assertEquals(53434.123, Double.valueOf(record.get("aDouble").toString()).doubleValue(), 0.0001);
 
         LocalDate resultDate = Instant.ofEpochSecond((int)record.get("aDate") * 24 * 60 * 60).atZone(ZoneId.systemDefault()).toLocalDate();
         LocalDate expectedDate = LocalDate.parse("1977-09-23", DateTimeFormatter.ISO_LOCAL_DATE);
-        assertEquals(resultDate, expectedDate);
+        assertEquals(expectedDate, resultDate);
 
+        // FIXME Falls parquet-avro fix i.O. (auch atZone muss nach systemDefault geändert werden).
         LocalDateTime resultDateTime = Instant.ofEpochMilli((long)record.get("aDatetime")).atZone(ZoneOffset.UTC).toLocalDateTime();
         LocalDateTime expectedDateTime = LocalDateTime.parse("1977-09-23T18:51:35.123"); // Das "lokale" Datum wird nach UTC beim Schreiben umgewandelt. Ist kompliziert... Siehe Code.
-        assertEquals(resultDateTime, expectedDateTime);
+        System.out.println("expectedDateTime: "  + expectedDateTime);
+        assertEquals(expectedDateTime, resultDateTime);
 
         LocalTime resultTime = Instant.ofEpochMilli(((Number)record.get("aTime")).longValue()).atZone(ZoneOffset.UTC).toLocalTime();
         LocalTime expectedTime = LocalTime.parse("18:51:35.123"); // Siehe datetime
-        assertEquals(resultTime, expectedTime);
+        assertEquals(expectedTime, resultTime);
 
         Boolean resultBoolean = (Boolean) record.get("aBoolean");
         assertTrue(resultBoolean);
-
+        
         assertEquals(record.get("attrPoint").toString(),"POINT ( 2600000.0 1200000.0 )");
 
         GenericRecord nextRecord = reader.read();
-        assertNull(nextRecord);
+        assertNull(nextRecord);        
     }
 
     @Test
@@ -300,7 +326,7 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("attrPoint").toString(),"POINT ( 2600000.0 1200000.0 )");
+        assertEquals("POINT ( 2600000.0 1200000.0 )", record.get("attrPoint").toString());
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
@@ -353,7 +379,7 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("attrMPoint").toString(),"MULTIPOINT ((2600000 1200000), (2600010 1200000), (2600010 1200010))");
+        assertEquals("MULTIPOINT ((2600000 1200000), (2600010 1200000), (2600010 1200010))", record.get("attrMPoint").toString());
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
@@ -402,7 +428,7 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("attrLineString").toString(),"LINESTRING (2600000 1200000, 2600010 1200000)");
+        assertEquals("LINESTRING (2600000 1200000, 2600010 1200000)", record.get("attrLineString").toString());
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
@@ -464,7 +490,7 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("attrMLineString").toString(),"MULTILINESTRING ((2600000 1200000, 2600010 1200000), (2600010 1200000, 2600010 1200010))");
+        assertEquals("MULTILINESTRING ((2600000 1200000, 2600010 1200000), (2600010 1200000, 2600010 1200010))", record.get("attrMLineString").toString());
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
@@ -536,7 +562,7 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("attrPolygon").toString(),"MULTIPOLYGON (((-0.2285714285714285 0.5688311688311687, -0.1585714285714285 0.5688311688311687, -0.1585714285714285 0.5688311688311687, -0.1585714285714285 0.5888311688311687, -0.1585714285714285 0.5888311688311687, -0.2285714285714285 0.5688311688311687)))");
+        assertEquals("MULTIPOLYGON (((-0.2285714285714285 0.5688311688311687, -0.1585714285714285 0.5688311688311687, -0.1585714285714285 0.5688311688311687, -0.1585714285714285 0.5888311688311687, -0.1585714285714285 0.5888311688311687, -0.2285714285714285 0.5688311688311687)))", record.get("attrPolygon").toString());
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
@@ -640,7 +666,7 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("attrMultiPolygon").toString(),"MULTIPOLYGON (((-0.228 0.568, -0.158 0.568, -0.158 0.568, -0.158 0.588, -0.158 0.588, -0.228 0.568)), ((0.228 1.3, 0.158 1.568, 0.158 1.568, 0.158 0.5, 0.158 0.5, 0.228 1.3)))");
+        assertEquals("MULTIPOLYGON (((-0.228 0.568, -0.158 0.568, -0.158 0.568, -0.158 0.588, -0.158 0.588, -0.228 0.568)), ((0.228 1.3, 0.158 1.568, 0.158 1.568, 0.158 0.5, 0.158 0.5, 0.228 1.3)))", record.get("attrMultiPolygon").toString());
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
@@ -694,8 +720,8 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("attrPoint").toString(),"POINT ( 2600000.0 1200000.0 )");
-        assertEquals(record.get("attrLineString").toString(),"LINESTRING (2600000 1200000, 2600010 1200000)");
+        assertEquals("POINT ( 2600000.0 1200000.0 )", record.get("attrPoint").toString());
+        assertEquals("LINESTRING (2600000 1200000, 2600010 1200000)", record.get("attrLineString").toString());
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
@@ -742,9 +768,9 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("id1").toString(),"1");
-        assertEquals(record.get("aText").toString(),"text1");
-        assertEquals(record.get("aDouble").toString(),"53434.123");
+        assertEquals("1", record.get("id1").toString());
+        assertEquals("text1", record.get("aText").toString());
+        assertEquals("53434.123", record.get("aDouble").toString());
 
         GenericRecord nextRecord = reader.read();
         assertNull(nextRecord);
@@ -789,11 +815,11 @@ public class ParquetWriterTest {
         ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 
         GenericRecord record = reader.read();
-        assertEquals(record.get("id1").toString(),"1");
-        assertEquals(record.get("aText").toString(),"text1");
+        assertEquals("1", record.get("id1").toString());
+        assertEquals("text1", record.get("aText").toString());
 
         GenericRecord nextRecord = reader.read();
-        assertEquals(nextRecord.get("id1").toString(),"2");
+        assertEquals("2", nextRecord.get("id1").toString());
         assertNull(nextRecord.get("aText"));
 
         assertNull(reader.read());

@@ -10,11 +10,13 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.avro.LogicalTypes;
+import org.apache.avro.LogicalTypes.LocalTimestampMillis;
 import org.apache.avro.LogicalTypes.TimeMillis;
 import org.apache.avro.LogicalTypes.TimestampMillis;
 import org.apache.avro.Schema;
@@ -37,6 +39,8 @@ import com.vividsolutions.jts.io.WKTWriter;
 import ch.ehi.basics.settings.Settings;
 import ch.interlis.ili2c.generator.XSDGenerator;
 import ch.interlis.ili2c.metamodel.LocalAttribute;
+import ch.interlis.ili2c.metamodel.NumericType;
+import ch.interlis.ili2c.metamodel.NumericalType;
 import ch.interlis.ili2c.metamodel.TransferDescription;
 import ch.interlis.ili2c.metamodel.Viewable;
 import ch.interlis.iom.IomObject;
@@ -131,18 +135,35 @@ public class ParquetWriter implements IoxWriter {
                             // TODO Geometriedinger
                             ch.interlis.ili2c.metamodel.Type iliType = localAttr.getDomainResolvingAliases();
                             if (iliType instanceof ch.interlis.ili2c.metamodel.NumericalType) {
-                                System.out.println("numeric");
-                                
+                                NumericalType numericalType = (NumericalType)iliType;
+                                NumericType numericType = (NumericType)numericalType;
+                                int precision = numericType.getMinimum().getAccuracy(); 
+                                if (precision > 0) {
+                                    attrDesc.setBinding(Double.class);
+                                } else {
+                                    attrDesc.setBinding(Integer.class);
+                                }
+                                attrDescs.add(attrDesc);
+                            } else {
+                                if (localAttr.isDomainBoolean()) {
+                                    attrDesc.setBinding(Boolean.class);
+                                    attrDescs.add(attrDesc);
+                                } else if (localAttr.isDomainIli2Date()) {
+                                    attrDesc.setBinding(LocalDate.class);
+                                    attrDescs.add(attrDesc);
+                                } else if (localAttr.isDomainIli2DateTime()) {
+                                    attrDesc.setBinding(LocalDateTime.class);
+                                    attrDescs.add(attrDesc);
+                                } else if (localAttr.isDomainIli2Time()) {
+                                    attrDesc.setBinding(LocalTime.class);
+                                    attrDescs.add(attrDesc);
+                                } else {
+                                    attrDesc.setBinding(String.class);
+                                    attrDescs.add(attrDesc);
+                                }
                             }
                         }
                     }
-
-                    
-                    
-                    
-                    
-                    
-                    
                 } else {
                     for(int u=0;u<iomObj.getattrcount();u++) {
                         String attrName = iomObj.getattrname(u);
@@ -159,7 +180,7 @@ public class ParquetWriter implements IoxWriter {
                         // verloren.
 
                         // Ist das nicht relativ heikel?
-                        // Funktioniert mit Strukturen nicht mehr, oder? Wegen getattrvaluecount?
+                        // Funktioniert mit mehr, wenn es andere Strukturen gibt, oder? Wegen getattrvaluecount?
                         // TODO: testen
                         if (iomObj.getattrvaluecount(attrName)>0 && iomObj.getattrobj(attrName,0) != null) {
 //                            System.out.println("geometry found");
@@ -184,10 +205,9 @@ public class ParquetWriter implements IoxWriter {
                                         attrDesc.setBinding(MultiPolygon.class);
                                     }
                                 } else {
-                                    // Siehe Kommentar oben. Ist das sinnvoll? Resp funktioniert das wenn es andere Strukturen gibt? Diese könnten man nach JSON
+                                    // Siehe Kommentar oben. Ist das sinnvoll? Resp. funktioniert das wenn es andere Strukturen gibt? Diese könnte man nach JSON
                                     // umwandeln und als String behandeln.
                                     // Was passiert in der Logik, falls keine Geometrie gesetzt ist?
-
                                     attrDesc.setBinding(Point.class);
                                 }
                                 if (defaultSrsId != null) {
@@ -279,15 +299,27 @@ public class ParquetWriter implements IoxWriter {
                 // vorliegt.
                 // Apache Drill muss dann aber im mit der UTC-Zeitzone gestartet werden. Siehe drill-env.sh: export DRILL_JAVA_OPTS="$DRILL_JAVA_OPTS -Duser.timezone=UTC"
                 // Komisch ist einfach, dass Beispiel-Parquet-Files aus dem Apache Drill Quellcode Timestamps ohne TZ haben, z.B. timestamp-table.parquet.
-                // Aber sogar wenn ich dieses Field verwende bei meiner Schema-Definition, funktionierts nicht.
+                // Es liegt an der parquet-Lib genauer glaub an parquet-avro, die die local-Varianten nicht unterstützt. Das Beispiel von apache-drill ist 
+                // wohl nicht mit dieser Lib erstellt worden.
+//                System.out.println("*****"+attrName);
+//                System.out.println("*****"+iomObj.getattrvalue(attrName));
                 LocalDateTime localDateTime = LocalDateTime.parse(iomObj.getattrvalue(attrName));
                 long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
+//                System.out.println(offset);
+
                 attrValue = Long.valueOf(localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()) - offset;
+//                System.out.println(attrValue);
+                
+                // FIXME
+//                attrValue = localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+//                System.out.println(attrValue);
             } else if (attrDesc.getBinding() == LocalTime.class) {
                 // Auch wieder schön mühsam.
                 // Damit daylight saving time nicht noch reinspielt, wird für die Berechnung des Offsets der Januar verwendet.
                 // Dafür funktioniert DuckDB nicht. Mit Microsekunden würde es funktionieren. Dann aber Apache Drill nicht.
                 LocalTime localTime = LocalTime.parse(iomObj.getattrvalue(attrName));
+//                System.out.println("localTime" + localTime);
+                
                 LocalDateTime localDateTime = LocalDateTime.parse("1970-01-01T12:00:00");
                 long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
                 int milliOfDay = (int) (localTime.toNanoOfDay() / 1_000_000);
@@ -326,6 +358,8 @@ public class ParquetWriter implements IoxWriter {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(dateType.addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);
             } else if (attrDesc.getBinding() == LocalDateTime.class) {
                 TimestampMillis datetimeType = LogicalTypes.timestampMillis();
+                // FIXME
+//                LocalTimestampMillis datetimeType = LogicalTypes.localTimestampMillis();
                 String doc = "UTC based timestamp.";
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(datetimeType.addToSchema(Schema.create(Schema.Type.LONG)), Schema.create(Schema.Type.NULL)), doc, null);
             } else if (attrDesc.getBinding() == LocalTime.class) {
