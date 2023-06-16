@@ -20,9 +20,9 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
-import org.apache.hadoop.fs.Path;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.LineString;
@@ -49,14 +49,14 @@ import ch.interlis.iox_j.jts.Iox2jtsException;
 public class ParquetWriter implements IoxWriter {
     private File outputFile;
     private org.apache.parquet.hadoop.ParquetWriter<GenericData.Record> writer = null;
-        
+
     private Schema schema = null;
     private List<ParquetAttributeDescriptor> attrDescs = null;
 
     private TransferDescription td = null;
     private String iliGeomAttrName = null;
-    
-    
+
+
     final long NANOS_PER_HOUR = TimeUnit.HOURS.toNanos(1);
     final long NANOS_PER_MINUTE = TimeUnit.MINUTES.toNanos(1);
     final long NANOS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
@@ -67,23 +67,24 @@ public class ParquetWriter implements IoxWriter {
     private static final String POLYLINE="POLYLINE";
     private static final String MULTIPOLYLINE="MULTIPOLYLINE";
     private static final String MULTISURFACE="MULTISURFACE";
-    
+
     private Integer srsId = null;
     private Integer defaultSrsId = 2056; // TODO: null
 
     public ParquetWriter(File file) throws IoxException {
         this(file,null);
     }
-    
-    public ParquetWriter(File file, Settings settings) throws IoxException { 
+
+    public ParquetWriter(File file, Settings settings) throws IoxException {
+        Map<String,String> foo = new HashMap<>();
         init(file,settings);
     }
-    
+
     private void init(File file, Settings settings) throws IoxException {
         //this.outputStream = new FileOutputStream(file);
         this.outputFile = file;
     }
-    
+
     public void setAttributeDescriptors(List<ParquetAttributeDescriptor> attrDescs) {
         this.attrDescs = attrDescs;
     }
@@ -95,14 +96,14 @@ public class ParquetWriter implements IoxWriter {
         }else if(event instanceof StartBasketEvent){
         }else if(event instanceof ObjectEvent){
             ObjectEvent obj = (ObjectEvent) event;
-            IomObject iomObj = (IomObject)obj.getIomObject();
+            IomObject iomObj = obj.getIomObject();
             String tag = iomObj.getobjecttag();
             System.out.println("tag: " + tag);
 
             // Wenn null, dann gibt es noch kein "Schema"
 //            attrDescsMap
             if(attrDescs == null) {
-                attrDescs = new ArrayList<ParquetAttributeDescriptor>();
+                attrDescs = new ArrayList<>();
                 if(td != null) {
                     // TODO
                 } else {
@@ -111,15 +112,15 @@ public class ParquetWriter implements IoxWriter {
                         System.out.println(attrName);
                         //create the builder
                         ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
-                        
+
                         // Es wurde weder ein Modell gesetzt noch wurde das Schema
                         // mittel setAttrDescs definiert. -> Es wird aus dem ersten IomObject
-                        // das Zielschema möglichst gut definiert. 
+                        // das Zielschema möglichst gut definiert.
                         // Nachteile:
                         // - Geometrie aus Struktur eruieren ... siehe Kommentar wegen anderen Strukturen. Kann eventuell abgefedert werden.
                         // - Wenn das erste Element fehlende Attribute hat (also NULL-Werte) gehen diese Attribute bei der Schemadefinition
                         // verloren.
-                        
+
                         // Ist das nicht relativ heikel?
                         // Funktioniert mit Strukturen nicht mehr, oder? Wegen getattrvaluecount?
                         // TODO: testen
@@ -138,18 +139,18 @@ public class ParquetWriter implements IoxWriter {
                                 } else if (iomGeom.getobjecttag().equals(MULTISURFACE)) {
                                     int surfaceCount=iomGeom.getattrvaluecount("surface");
                                     if(surfaceCount==1) {
-                                        /* Weil das "Schema" anhand des ersten IomObjektes erstellt wird, 
-                                         * kann es vorkommen, dass Multisurfaces mit mehr als einer Surface nicht zu einem Multipolygon umgewandelt werden, 
+                                        /* Weil das "Schema" anhand des ersten IomObjektes erstellt wird,
+                                         * kann es vorkommen, dass Multisurfaces mit mehr als einer Surface nicht zu einem Multipolygon umgewandelt werden,
                                          * sondern zu einem Polygon. Aus diesem Grund wird immer das MultiPolygon-Binding verwendet. */
                                         attrDesc.setBinding(MultiPolygon.class);
                                     } else if (surfaceCount>1) {
                                         attrDesc.setBinding(MultiPolygon.class);
                                     }
                                 } else {
-                                    // Siehe Kommentar oben. Ist das sinnvoll? Resp funktioniert das wenn es andere Strukturen gibt? Diese könnten man nach JSON 
+                                    // Siehe Kommentar oben. Ist das sinnvoll? Resp funktioniert das wenn es andere Strukturen gibt? Diese könnten man nach JSON
                                     // umwandeln und als String behandeln.
-                                    // Was passiert in der Logik, falls keine Geometrie gesetzt ist? 
-                                    
+                                    // Was passiert in der Logik, falls keine Geometrie gesetzt ist?
+
                                     attrDesc.setBinding(Point.class);
                                 }
                                 if (defaultSrsId != null) {
@@ -167,7 +168,7 @@ public class ParquetWriter implements IoxWriter {
             }
             if (schema == null) {
                 schema = createSchema(attrDescs);
-                
+
                 Path path = new Path(outputFile.getAbsolutePath());
                 try {
                     Configuration conf = new Configuration();
@@ -185,7 +186,7 @@ public class ParquetWriter implements IoxWriter {
                     throw new IoxException(e.getMessage());
                 }
             }
-     
+
             GenericData.Record record = null;
             try {
                 record = generateRecord(iomObj, schema);
@@ -204,13 +205,13 @@ public class ParquetWriter implements IoxWriter {
 
     private GenericData.Record generateRecord(IomObject iomObj, Schema schema) throws Iox2jtsException {
         GenericData.Record record = new GenericData.Record(schema);
-        
+
         for (ParquetAttributeDescriptor attrDesc : attrDescs) {
             String attrName = attrDesc.getAttributeName();
             Object attrValue = null;
             if (attrDesc.getBinding() == Point.class) {
                 Coordinate geom = Iox2jts.coord2JTS(iomObj.getattrobj(attrName, 0));
-                attrValue = WKTWriter.toPoint(geom); 
+                attrValue = WKTWriter.toPoint(geom);
             } else if (attrDesc.getBinding() == MultiPoint.class) {
                 MultiPoint geom = Iox2jts.multicoord2JTS(iomObj.getattrobj(attrName, 0));
                 attrValue = geom.toText();
@@ -224,7 +225,7 @@ public class ParquetWriter implements IoxWriter {
                 Polygon geom = Iox2jts.surface2JTS(iomObj.getattrobj(attrName, 0), 0);
                 attrValue = geom.toText();
             } else if (attrDesc.getBinding() == MultiPolygon.class) {
-                MultiPolygon geom = Iox2jts.multisurface2JTS(iomObj.getattrobj(attrName, 0), 0, 2056); 
+                MultiPolygon geom = Iox2jts.multisurface2JTS(iomObj.getattrobj(attrName, 0), 0, 2056);
                 attrValue = geom.toText();
             } else if (attrDesc.getBinding() == String.class) {
                 attrValue = iomObj.getattrvalue(attrName);
@@ -237,36 +238,36 @@ public class ParquetWriter implements IoxWriter {
                 attrValue = Integer.valueOf((int) localDate.toEpochDay());
             } else if (attrDesc.getBinding() == LocalDateTime.class) {
                 // https://stackoverflow.com/questions/75970956/write-parquet-file-with-local-timestamp-with-avro-schema
-                // Ich rechne alle Datetimes auf UTC zurück, in der Annahme, dass das Datetime im "systemDefault" 
+                // Ich rechne alle Datetimes auf UTC zurück, in der Annahme, dass das Datetime im "systemDefault"
                 // vorliegt.
                 // Apache Drill muss dann aber im mit der UTC-Zeitzone gestartet werden. Siehe drill-env.sh: export DRILL_JAVA_OPTS="$DRILL_JAVA_OPTS -Duser.timezone=UTC"
                 // Komisch ist einfach, dass Beispiel-Parquet-Files aus dem Apache Drill Quellcode Timestamps ohne TZ haben, z.B. timestamp-table.parquet.
-                // Aber sogar wenn ich dieses Field verwende bei meiner Schema-Definition, funktionierts nicht. 
-                LocalDateTime localDateTime = LocalDateTime.parse(iomObj.getattrvalue(attrName));   
-                long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));                
-                attrValue = Long.valueOf((long) localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()) - offset; 
+                // Aber sogar wenn ich dieses Field verwende bei meiner Schema-Definition, funktionierts nicht.
+                LocalDateTime localDateTime = LocalDateTime.parse(iomObj.getattrvalue(attrName));
+                long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
+                attrValue = Long.valueOf(localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()) - offset;
             } else if (attrDesc.getBinding() == LocalTime.class) {
                 // Auch wieder schön mühsam.
                 // Damit daylight saving time nich noch reinspielt, wird für die Berechnung des Offsets der Januar verwendet.
                 // Dafür funktioniert DuckDB nicht. Mit Microsekunden würde es funktionieren. Dann aber Apache Drill nicht.
                 LocalTime localTime = LocalTime.parse(iomObj.getattrvalue(attrName));
-                LocalDateTime localDateTime = LocalDateTime.parse("1970-01-01T12:00:00"); 
+                LocalDateTime localDateTime = LocalDateTime.parse("1970-01-01T12:00:00");
                 long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
                 int milliOfDay = (int) (localTime.toNanoOfDay() / 1_000_000);
                 attrValue = milliOfDay - offset;
             } else if (attrDesc.getBinding() == Boolean.class) {
                 attrValue = Boolean.parseBoolean(iomObj.getattrvalue(attrName));
-            } 
+            }
             else {
                 attrValue = iomObj.getattrvalue(attrName);
             }
-            
+
             record.put(attrName, attrValue);
         }
-        
+
         return record;
     }
-    
+
     private Schema createSchema(List<ParquetAttributeDescriptor> attrDescs) {
         Schema schema = Schema.createRecord("myrecordname", null, "ch.so.agi.ioxwkf.parquet", false);
         List<Schema.Field> fields = new ArrayList<>();
@@ -275,7 +276,7 @@ public class ParquetWriter implements IoxWriter {
             Field field = null;
             if (attrDesc.isGeometry()) {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
-                // Mehr braucht es momentan nicht. Beim Record herstellen, loope ich nochmals über die AttributeDescriptions. Dort habe ich und brauche ich das Wissen über 
+                // Mehr braucht es momentan nicht. Beim Record herstellen, loope ich nochmals über die AttributeDescriptions. Dort habe ich und brauche ich das Wissen über
                 // den Geometrietyp für die Umwandlung nach WKT.
             } else if (attrDesc.getBinding() == String.class) {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
@@ -285,7 +286,7 @@ public class ParquetWriter implements IoxWriter {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.DOUBLE), Schema.create(Schema.Type.NULL)), null, null);
             } else if (attrDesc.getBinding() == LocalDate.class) {
                 org.apache.avro.LogicalTypes.Date dateType = LogicalTypes.date();
-                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(dateType.addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);  
+                field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(dateType.addToSchema(Schema.create(Schema.Type.INT)), Schema.create(Schema.Type.NULL)), null, null);
             } else if (attrDesc.getBinding() == LocalDateTime.class) {
                 TimestampMillis datetimeType = LogicalTypes.timestampMillis();
                 String doc = "UTC based timestamp.";
@@ -300,14 +301,14 @@ public class ParquetWriter implements IoxWriter {
             else {
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(Schema.create(Schema.Type.STRING), Schema.create(Schema.Type.NULL)), null, null);
             }
-            
+
             fields.add(field);
         }
         schema.setFields(fields);
-        
+
         return schema;
     }
-            
+
     @Override
     public void close() throws IoxException {
         try {

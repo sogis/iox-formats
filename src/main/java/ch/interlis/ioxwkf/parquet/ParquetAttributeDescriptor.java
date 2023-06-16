@@ -14,7 +14,7 @@ public class ParquetAttributeDescriptor {
     private Integer precision = null;
     private Boolean mandatory = null;
     private Boolean geometry = false;
-    
+
     public String getAttributeName() {
         return attributeName;
     }
@@ -75,5 +75,5 @@ public class ParquetAttributeDescriptor {
     public void setGeometry(Boolean geometry) {
         this.geometry = geometry;
     }
-    
+
 }
