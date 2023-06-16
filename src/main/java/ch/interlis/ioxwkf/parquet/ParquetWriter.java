@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -34,7 +35,10 @@ import com.vividsolutions.jts.geom.Polygon;
 import com.vividsolutions.jts.io.WKTWriter;
 
 import ch.ehi.basics.settings.Settings;
+import ch.interlis.ili2c.generator.XSDGenerator;
+import ch.interlis.ili2c.metamodel.LocalAttribute;
 import ch.interlis.ili2c.metamodel.TransferDescription;
+import ch.interlis.ili2c.metamodel.Viewable;
 import ch.interlis.iom.IomObject;
 import ch.interlis.iox.IoxEvent;
 import ch.interlis.iox.IoxException;
@@ -76,13 +80,16 @@ public class ParquetWriter implements IoxWriter {
     }
 
     public ParquetWriter(File file, Settings settings) throws IoxException {
-        Map<String,String> foo = new HashMap<>();
         init(file,settings);
     }
 
     private void init(File file, Settings settings) throws IoxException {
         //this.outputStream = new FileOutputStream(file);
         this.outputFile = file;
+    }
+
+    public void setModel(TransferDescription td) {
+        this.td = td;
     }
 
     public void setAttributeDescriptors(List<ParquetAttributeDescriptor> attrDescs) {
@@ -104,7 +111,32 @@ public class ParquetWriter implements IoxWriter {
             if(attrDescs == null) {
                 attrDescs = new ArrayList<>();
                 if(td != null) {
-                    // TODO
+                    Viewable aclass = (Viewable) XSDGenerator.getTagMap(td).get(tag);
+                    if (aclass == null) {
+                        throw new IoxException("class "+iomObj.getobjecttag()+" not found in model");
+                    }
+                    Iterator viewableIter = aclass.getAttributes();
+                    while(viewableIter.hasNext()) {
+                        ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
+
+                        Object attrObj = viewableIter.next();
+                        System.out.println(attrObj);
+
+                        if(attrObj instanceof LocalAttribute) {
+                            LocalAttribute localAttr = (LocalAttribute)attrObj;
+                            String attrName = localAttr.getName();
+                            System.out.println(attrName);
+                            attrDesc.setAttributeName(attrName);
+
+                            // TODO Geometriedinger
+                            ch.interlis.ili2c.metamodel.Type iliType = localAttr.getDomainResolvingAliases();
+                            if (iliType instanceof ch.interlis.ili2c.metamodel.NumericalType) {
+                                System.out.println("numeric");
+                                
+                            }
+                        }
+                    }
+
                     
                     
                     

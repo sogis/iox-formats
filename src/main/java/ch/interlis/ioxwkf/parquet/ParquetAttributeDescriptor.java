@@ -5,6 +5,7 @@ package ch.interlis.ioxwkf.parquet;
 // Bindings wäre immer ohne Arcs. Eher was für generische AttributeDescriptor.
 public class ParquetAttributeDescriptor {
     private String attributeName;
+    private String iomAttributeName;
     private Class<?> binding;
     private String attributeType;
     private String attributeTypeName;
@@ -20,6 +21,12 @@ public class ParquetAttributeDescriptor {
     }
     public void setAttributeName(String attributeName) {
         this.attributeName = attributeName;
+    }
+    public String getIomAttributeName() {
+        return iomAttributeName;
+    }
+    public void setIomAttributeName(String iomAttributeName) {
+        this.iomAttributeName = iomAttributeName;
     }
     public Class<?> getBinding() {
         return binding;

@@ -27,6 +27,10 @@ import org.junit.Test;
 
 import com.vividsolutions.jts.geom.Point;
 
+import ch.interlis.ili2c.Ili2cFailure;
+import ch.interlis.ili2c.config.FileEntry;
+import ch.interlis.ili2c.config.FileEntryKind;
+import ch.interlis.ili2c.metamodel.TransferDescription;
 import ch.interlis.iom.IomObject;
 import ch.interlis.iom_j.Iom_jObject;
 import ch.interlis.iox.IoxException;
@@ -43,7 +47,6 @@ public class ParquetWriterTest {
 
     private static final Configuration testConf = new Configuration();
 
-
     @BeforeClass
     public static void setupFolder() {
         new File(TEST_OUT).mkdirs();
@@ -53,34 +56,90 @@ public class ParquetWriterTest {
     // - Falls nicht immer alle Felder optional/nullable sind, kann man das Verhalten auch testen. Es wird ein Fehler geworfen: "java.lang.RuntimeException: Null-value for required field: aText"
 
     //@Test
-    public void dummy() throws IOException {
-        //Path resultFile = new Path(new File("/Users/stefan/tmp/lineitem.parquet").getAbsolutePath());
-        Path resultFile = new Path(new File("/Users/stefan/Downloads/timestamp_table.parquet").getAbsolutePath());
-        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
-
-        GenericRecord record = reader.read();
-        //System.out.println(record.getSchema());
-        System.out.println(record.getSchema().getField("timestamp_col").schema());
-        System.out.println(record.getSchema().getField("timestamp_col").schema().getDoc());
-        System.out.println(record.getSchema().getField("timestamp_col").schema().getObjectProps());
-        System.out.println(record.getSchema().getField("timestamp_col").schema().getType());
-        System.out.println(record.getSchema().getField("timestamp_col").schema().getLogicalType());
-
-        System.out.println(record.get("timestamp_col"));
-        System.out.println(record.get("timestamp_col").getClass());
-
-
-//        for (Schema foo : record.getSchema().getField("timestamp_col").schema().getTypes()) {
-//            System.out.println("****");
-//            System.out.println(foo);
-//            System.out.println(foo.getObjectProps());
-//            System.out.println(foo.getType());
-//            System.out.println(foo.getLogicalType());
+//    public void dummy() throws IOException {
+//        //Path resultFile = new Path(new File("/Users/stefan/tmp/lineitem.parquet").getAbsolutePath());
+//        Path resultFile = new Path(new File("/Users/stefan/Downloads/timestamp_table.parquet").getAbsolutePath());
+//        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
 //
-//        }
-
-
+//        GenericRecord record = reader.read();
+//        //System.out.println(record.getSchema());
+//        System.out.println(record.getSchema().getField("timestamp_col").schema());
+//        System.out.println(record.getSchema().getField("timestamp_col").schema().getDoc());
+//        System.out.println(record.getSchema().getField("timestamp_col").schema().getObjectProps());
+//        System.out.println(record.getSchema().getField("timestamp_col").schema().getType());
+//        System.out.println(record.getSchema().getField("timestamp_col").schema().getLogicalType());
+//
+//        System.out.println(record.get("timestamp_col"));
+//        System.out.println(record.get("timestamp_col").getClass());
+//
+//
+////        for (Schema foo : record.getSchema().getField("timestamp_col").schema().getTypes()) {
+////            System.out.println("****");
+////            System.out.println(foo);
+////            System.out.println(foo.getObjectProps());
+////            System.out.println(foo.getType());
+////            System.out.println(foo.getLogicalType());
+////
+////        }
+//
+//
+//    }
+    
+    public TransferDescription compileModel(String iliFileName) throws Ili2cFailure
+    {
+        // compile model
+        ch.interlis.ili2c.config.Configuration ili2cConfig = new ch.interlis.ili2c.config.Configuration();
+        FileEntry fileEntry = new FileEntry(TEST_IN+"/"+iliFileName, FileEntryKind.ILIMODELFILE);
+        ili2cConfig.addFileEntry(fileEntry);
+        TransferDescription td = ch.interlis.ili2c.Ili2c.runCompiler(ili2cConfig);
+        return td;
     }
+
+   
+    @Test
+    public void model_set_Ok() throws Ili2cFailure, IoxException {
+        // Prepare
+        TransferDescription td = compileModel("Test1.ili");
+        System.out.println(td.toString());
+        
+        Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Class1", "o1");
+        inputObj.setattrvalue("id1", "1");
+        inputObj.setattrvalue("aText", "text1");
+        inputObj.setattrvalue("aDouble", "53434.123");
+        inputObj.setattrvalue("aDate", "1977-09-23");
+        inputObj.setattrvalue("aDatetime", "1977-09-23T19:51:35.123");
+        inputObj.setattrvalue("aTime", "19:51:35.123");
+        inputObj.setattrvalue("aBoolean", "true");
+        
+        // Run
+        ParquetWriter writer = null;
+        File file = new File(TEST_OUT,"model_set_Ok.parquet");
+        try {
+            writer = new ParquetWriter(file);
+            writer.setModel(td);
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
+            writer.write(new ObjectEvent(inputObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch(IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if(writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer=null;
+            }
+        }
+
+        
+    }
+    
+    
+    
 
     @Test
     public void attributes_description_set_Ok() throws IoxException, IOException {
