@@ -109,7 +109,6 @@ public class ParquetWriter implements IoxWriter {
             ObjectEvent obj = (ObjectEvent) event;
             IomObject iomObj = obj.getIomObject();
             String tag = iomObj.getobjecttag();
-            System.out.println("tag: " + tag);
 
             // Wenn null, dann gibt es noch kein "Schema".
             if(attrDescs == null) {
@@ -359,7 +358,7 @@ public class ParquetWriter implements IoxWriter {
             } else if (attrDesc.getBinding() == LocalDateTime.class) {
                 TimestampMillis datetimeType = LogicalTypes.timestampMillis();
                 // FIXME
-//                LocalTimestampMillis datetimeType = LogicalTypes.localTimestampMillis();
+                //LocalTimestampMillis datetimeType = LogicalTypes.localTimestampMillis();
                 String doc = "UTC based timestamp.";
                 field = new Schema.Field(attrDesc.getAttributeName(), Schema.createUnion(datetimeType.addToSchema(Schema.create(Schema.Type.LONG)), Schema.create(Schema.Type.NULL)), doc, null);
             } else if (attrDesc.getBinding() == LocalTime.class) {
