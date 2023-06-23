@@ -82,8 +82,10 @@ publishing {
     }
 }
 
-signing {
-    sign publishing.publications.mavenJava
+if (!version.toString().endsWith("LOCALBUILD")) {
+    signing {
+        sign publishing.publications.mavenJava
+    }
 }
 
 nexusPublishing {
