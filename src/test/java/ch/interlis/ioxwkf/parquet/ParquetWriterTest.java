@@ -95,12 +95,67 @@ public class ParquetWriterTest {
         return td;
     }
 
+    
+    @Test
+    public void model_set_null_values_Ok() throws Exception {
+        // Prepare
+        File parentDir = new File(TEST_OUT, "null_values_Ok");
+        parentDir.mkdirs();
+        TransferDescription td = compileModel("Test1.ili");
+        
+        Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Class1", "o1");
+        //inputObj.setattrvalue("id1", "1");
+        //inputObj.setattrvalue("aText", null);
+        //inputObj.setattrvalue("aDouble", "53434.123");
+        //inputObj.setattrvalue("aDate", "1977-09-23");
+        //inputObj.setattrvalue("aDatetime", "1977-09-23T19:51:35.123");
+        //inputObj.setattrvalue("aTime", "19:51:35.123");
+        //inputObj.setattrvalue("aBoolean", "true");
+        
+        // Run
+        ParquetWriter writer = null;
+        File file = new File(parentDir,"model_set_Ok.parquet");
+        try {
+            writer = new ParquetWriter(file);
+            writer.setModel(td);
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
+            writer.write(new ObjectEvent(inputObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch(IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if(writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer=null;
+            }
+        }
+
+        // Validate
+        Path resultFile = new Path(file.getAbsolutePath());
+        ParquetReader<GenericRecord> reader = AvroParquetReader.<GenericRecord>builder(HadoopInputFile.fromPath(resultFile,testConf)).build();
+
+        GenericRecord record = reader.read();
+        assertEquals(null, record.get("id1"));
+        assertEquals(null, record.get("aText"));
+        assertEquals(null, record.get("aDouble"));
+        assertEquals(null, record.get("aDate"));
+        assertEquals(null, record.get("aDatetime"));
+        assertEquals(null, record.get("aTime"));
+        assertEquals(null, record.get("aBoolean"));
+    }
    
     @Test
     public void model_set_Ok() throws Ili2cFailure, IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "model_set_Ok");
+        parentDir.mkdirs();
         TransferDescription td = compileModel("Test1.ili");
-        System.out.println(td.toString());
         
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Class1", "o1");
         inputObj.setattrvalue("id1", "1");
@@ -113,7 +168,7 @@ public class ParquetWriterTest {
         
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"model_set_Ok.parquet");
+        File file = new File(parentDir,"model_set_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.setModel(td);
@@ -168,6 +223,9 @@ public class ParquetWriterTest {
     @Test
     public void attributes_description_set_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "attributes_description_set_Ok");
+        parentDir.mkdirs();
+
         List<ParquetAttributeDescriptor> attrDescs = new ArrayList<>();
         {
             ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
@@ -234,7 +292,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"attributes_description_set_Ok.parquet");
+        File file = new File(parentDir,"attributes_description_set_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.setAttributeDescriptors(attrDescs);
@@ -291,6 +349,9 @@ public class ParquetWriterTest {
     @Test
     public void wkt_point_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "wkt_point_Ok");
+        parentDir.mkdirs();
+
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
         {
@@ -300,7 +361,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"wkt_point_Ok.parquet");
+        File file = new File(parentDir,"wkt_point_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
@@ -335,6 +396,9 @@ public class ParquetWriterTest {
     @Test
     public void wkt_multipoint_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "wkt_multipoint_Ok");
+        parentDir.mkdirs();
+
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         IomObject multiCoordValue=inputObj.addattrobj("attrMPoint", "MULTICOORD");
         {
@@ -353,7 +417,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"wkt_multipoint_Ok.parquet");
+        File file = new File(parentDir,"wkt_multipoint_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
@@ -388,6 +452,9 @@ public class ParquetWriterTest {
     @Test
     public void wkt_linestring_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "wkt_linestring_Ok");
+        parentDir.mkdirs();
+
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         IomObject polylineValue=inputObj.addattrobj("attrLineString", "POLYLINE");
         {
@@ -402,7 +469,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"wkt_linestring_Ok.parquet");
+        File file = new File(parentDir,"wkt_linestring_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
@@ -437,6 +504,9 @@ public class ParquetWriterTest {
     @Test
     public void wkt_multilinestring_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "wkt_linestring_Ok");
+        parentDir.mkdirs();
+
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         IomObject multiPolylineValue=inputObj.addattrobj("attrMLineString", "MULTIPOLYLINE");
 
@@ -464,7 +534,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"wkt_multilinestring_Ok.parquet");
+        File file = new File(parentDir,"wkt_multilinestring_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
@@ -499,6 +569,9 @@ public class ParquetWriterTest {
     @Test
     public void wkt_polygon_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "wkt_polygon_Ok");
+        parentDir.mkdirs();
+
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
 
         IomObject multisurfaceValue = inputObj.addattrobj("attrPolygon", "MULTISURFACE");
@@ -536,7 +609,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"wkt_polygon_Ok.parquet");
+        File file = new File(parentDir,"wkt_polygon_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
@@ -571,6 +644,9 @@ public class ParquetWriterTest {
     @Test
     public void wkt_multipolygon_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "wkt_multipolygon_Ok");
+        parentDir.mkdirs();
+
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
 
         IomObject multisurfaceValue = inputObj.addattrobj("attrMultiPolygon", "MULTISURFACE");
@@ -640,7 +716,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"wkt_multipolygon_Ok.parquet");
+        File file = new File(parentDir,"wkt_multipolygon_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
@@ -675,6 +751,9 @@ public class ParquetWriterTest {
     @Test
     public void wkt_point_and_linestring_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "wkt_point_and_linestring_Ok");
+        parentDir.mkdirs();
+
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         IomObject coordValue = inputObj.addattrobj("attrPoint", "COORD");
         {
@@ -694,7 +773,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"wkt_point_and_linestring_Ok.parquet");
+        File file = new File(parentDir,"wkt_point_and_linestring_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
@@ -730,6 +809,9 @@ public class ParquetWriterTest {
     @Test
     public void attributes_no_description_set_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "attributes_no_description_set_Ok");
+        parentDir.mkdirs();
+
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         inputObj.setattrvalue("id1", "1");
         inputObj.setattrvalue("aText", "text1");
@@ -742,7 +824,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"attributes_no_description_set_Ok.parquet");
+        File file = new File(parentDir,"attributes_no_description_set_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());
@@ -779,6 +861,9 @@ public class ParquetWriterTest {
     @Test
     public void attributes_no_description_set_null_value_Ok() throws IoxException, IOException {
         // Prepare
+        File parentDir = new File(TEST_OUT, "attributes_no_description_set_Ok");
+        parentDir.mkdirs();
+
         Iom_jObject inputObj1 = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         inputObj1.setattrvalue("id1", "1");
         inputObj1.setattrvalue("aText", "text1");
@@ -788,7 +873,7 @@ public class ParquetWriterTest {
 
         // Run
         ParquetWriter writer = null;
-        File file = new File(TEST_OUT,"attributes_no_description_set_null_value_Ok.parquet");
+        File file = new File(parentDir,"attributes_no_description_set_null_value_Ok.parquet");
         try {
             writer = new ParquetWriter(file);
             writer.write(new StartTransferEvent());

@@ -266,32 +266,50 @@ public class ParquetWriter implements IoxWriter {
             String attrName = attrDesc.getAttributeName();
             Object attrValue = null;
             if (attrDesc.getBinding() == Point.class) {
-                Coordinate geom = Iox2jts.coord2JTS(iomObj.getattrobj(attrName, 0));
-                attrValue = WKTWriter.toPoint(geom);
+                if ((iomObj.getattrobj(attrName, 0)!=null)) {
+                    Coordinate geom = Iox2jts.coord2JTS(iomObj.getattrobj(attrName, 0));
+                    attrValue = WKTWriter.toPoint(geom);                    
+                }
             } else if (attrDesc.getBinding() == MultiPoint.class) {
-                MultiPoint geom = Iox2jts.multicoord2JTS(iomObj.getattrobj(attrName, 0));
-                attrValue = geom.toText();
+                if ((iomObj.getattrobj(attrName, 0)!=null)) {
+                    MultiPoint geom = Iox2jts.multicoord2JTS(iomObj.getattrobj(attrName, 0));
+                    attrValue = geom.toText();
+                }
             } else if (attrDesc.getBinding() == LineString.class) {
-                LineString geom = Iox2jts.polyline2JTSlineString(iomObj.getattrobj(attrName, 0), false, 0);
-                attrValue = geom.toText();
+                if ((iomObj.getattrobj(attrName, 0)!=null)) {
+                    LineString geom = Iox2jts.polyline2JTSlineString(iomObj.getattrobj(attrName, 0), false, 0);
+                    attrValue = geom.toText();
+                }
             } else if (attrDesc.getBinding() == MultiLineString.class) {
-                MultiLineString geom = Iox2jts.multipolyline2JTS(iomObj.getattrobj(attrName, 0), 0);
-                attrValue = geom.toText();
+                if ((iomObj.getattrobj(attrName, 0)!=null)) {
+                    MultiLineString geom = Iox2jts.multipolyline2JTS(iomObj.getattrobj(attrName, 0), 0);
+                    attrValue = geom.toText();                    
+                }
             } else if (attrDesc.getBinding() == Polygon.class) {
-                Polygon geom = Iox2jts.surface2JTS(iomObj.getattrobj(attrName, 0), 0);
-                attrValue = geom.toText();
+                if ((iomObj.getattrobj(attrName, 0)!=null)) {
+                    Polygon geom = Iox2jts.surface2JTS(iomObj.getattrobj(attrName, 0), 0);
+                    attrValue = geom.toText();
+                }
             } else if (attrDesc.getBinding() == MultiPolygon.class) {
-                MultiPolygon geom = Iox2jts.multisurface2JTS(iomObj.getattrobj(attrName, 0), 0, 2056);
-                attrValue = geom.toText();
+                if ((iomObj.getattrobj(attrName, 0)!=null)) {
+                    MultiPolygon geom = Iox2jts.multisurface2JTS(iomObj.getattrobj(attrName, 0), 0, 2056);
+                    attrValue = geom.toText();                
+                }
             } else if (attrDesc.getBinding() == String.class) {
                 attrValue = iomObj.getattrvalue(attrName);
             } else if (attrDesc.getBinding() == Integer.class) {
-                attrValue = Integer.valueOf(iomObj.getattrvalue(attrName)).intValue();
+                if (iomObj.getattrvalue(attrName) != null) {
+                    attrValue = Integer.valueOf(iomObj.getattrvalue(attrName)).intValue();                    
+                }
             } else if (attrDesc.getBinding() == Double.class) {
-                attrValue = Double.valueOf(iomObj.getattrvalue(attrName)).doubleValue();
+                if (iomObj.getattrvalue(attrName) != null) {
+                    attrValue = Double.valueOf(iomObj.getattrvalue(attrName)).doubleValue();
+                }
             } else if (attrDesc.getBinding() == LocalDate.class) {
-                LocalDate localDate = LocalDate.parse(iomObj.getattrvalue(attrName), DateTimeFormatter.ISO_LOCAL_DATE);
-                attrValue = Integer.valueOf((int) localDate.toEpochDay());
+                if (iomObj.getattrvalue(attrName) != null) {
+                    LocalDate localDate = LocalDate.parse(iomObj.getattrvalue(attrName), DateTimeFormatter.ISO_LOCAL_DATE);
+                    attrValue = Integer.valueOf((int) localDate.toEpochDay());
+                }
             } else if (attrDesc.getBinding() == LocalDateTime.class) {
                 // https://stackoverflow.com/questions/75970956/write-parquet-file-with-local-timestamp-with-avro-schema
                 // Ich rechne alle Datetimes auf UTC zurück, in der Annahme, dass das Datetime im "systemDefault"
@@ -302,29 +320,34 @@ public class ParquetWriter implements IoxWriter {
                 // wohl nicht mit dieser Lib erstellt worden.
 //                System.out.println("*****"+attrName);
 //                System.out.println("*****"+iomObj.getattrvalue(attrName));
-                LocalDateTime localDateTime = LocalDateTime.parse(iomObj.getattrvalue(attrName));
-                long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
-//                System.out.println(offset);
-
-                attrValue = Long.valueOf(localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()) - offset;
-//                System.out.println(attrValue);
+                if (iomObj.getattrvalue(attrName) != null) {
+                    LocalDateTime localDateTime = LocalDateTime.parse(iomObj.getattrvalue(attrName));
+                    long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
+//                    System.out.println(offset);
+                    attrValue = Long.valueOf(localDateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli()) - offset;
+//                    System.out.println(attrValue);
+                }
                 
                 // FIXME
 //                attrValue = localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
 //                System.out.println(attrValue);
             } else if (attrDesc.getBinding() == LocalTime.class) {
+                if (iomObj.getattrvalue(attrName) != null) {
+                    LocalTime localTime = LocalTime.parse(iomObj.getattrvalue(attrName));
+//                  System.out.println("localTime" + localTime);
+                  
+                  LocalDateTime localDateTime = LocalDateTime.parse("1970-01-01T12:00:00");
+                  long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
+                  int milliOfDay = (int) (localTime.toNanoOfDay() / 1_000_000);
+                  attrValue = milliOfDay - offset;
+                }
                 // Auch wieder schön mühsam.
                 // Damit daylight saving time nicht noch reinspielt, wird für die Berechnung des Offsets der Januar verwendet.
                 // Dafür funktioniert DuckDB nicht. Mit Microsekunden würde es funktionieren. Dann aber Apache Drill nicht.
-                LocalTime localTime = LocalTime.parse(iomObj.getattrvalue(attrName));
-//                System.out.println("localTime" + localTime);
-                
-                LocalDateTime localDateTime = LocalDateTime.parse("1970-01-01T12:00:00");
-                long offset = ChronoUnit.MILLIS.between(localDateTime.atZone(ZoneId.systemDefault()),localDateTime.atZone(ZoneOffset.UTC));
-                int milliOfDay = (int) (localTime.toNanoOfDay() / 1_000_000);
-                attrValue = milliOfDay - offset;
             } else if (attrDesc.getBinding() == Boolean.class) {
-                attrValue = Boolean.parseBoolean(iomObj.getattrvalue(attrName));
+                if (iomObj.getattrvalue(attrName) != null) {
+                    attrValue = Boolean.parseBoolean(iomObj.getattrvalue(attrName));                    
+                }
             }
             else {
                 attrValue = iomObj.getattrvalue(attrName);
