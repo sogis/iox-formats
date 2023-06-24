@@ -123,12 +123,12 @@ public class ParquetWriter implements IoxWriter {
                         ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
 
                         Object attrObj = viewableIter.next();
-                        System.out.println(attrObj);
+                        //System.out.println(attrObj);
 
                         if(attrObj instanceof LocalAttribute) {
                             LocalAttribute localAttr = (LocalAttribute)attrObj;
                             String attrName = localAttr.getName();
-                            System.out.println(attrName);
+                            //System.out.println(attrName);
                             attrDesc.setAttributeName(attrName);
 
                             // TODO Geometriedinger
