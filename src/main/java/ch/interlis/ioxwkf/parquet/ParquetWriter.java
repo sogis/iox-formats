@@ -166,7 +166,7 @@ public class ParquetWriter implements IoxWriter {
                 } else {
                     for(int u=0;u<iomObj.getattrcount();u++) {
                         String attrName = iomObj.getattrname(u);
-                        System.out.println(attrName);
+                        //System.out.println(attrName);
                         //create the builder
                         ParquetAttributeDescriptor attrDesc = new ParquetAttributeDescriptor();
 
