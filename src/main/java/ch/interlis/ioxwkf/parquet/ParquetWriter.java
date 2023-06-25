@@ -26,6 +26,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.hadoop.ParquetFileWriter;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.LineString;
@@ -230,6 +231,7 @@ public class ParquetWriter implements IoxWriter {
                     Configuration conf = new Configuration();
                     writer = AvroParquetWriter.<GenericData.Record>builder(path)
                             .withSchema(schema)
+                            .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
                             .withCompressionCodec(CompressionCodecName.SNAPPY) // TODO was ist gut? Snappy ist was "natives" (ähnlich wie sqlite).
                             .withRowGroupSize(org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE)
                             .withPageSize(org.apache.parquet.hadoop.ParquetWriter.DEFAULT_PAGE_SIZE)
