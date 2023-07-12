@@ -57,7 +57,7 @@ publishing {
             artifact javadocJar
 
             pom {
-                name = "ilivalidator-custom-functions"
+                name = "iox-parquet"
                 url = "https://github.com/sogis/ilivalidator-custom-functions"
                 description = "ilivalidator-custom-functions"
                 scm {
