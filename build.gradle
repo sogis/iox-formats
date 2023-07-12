@@ -58,17 +58,17 @@ publishing {
 
             pom {
                 name = "iox-parquet"
-                url = "https://github.com/sogis/ilivalidator-custom-functions"
-                description = "ilivalidator-custom-functions"
+                url = "https://github.com/edigonzales/iox-parquet"
+                description = "iox-parquet"
                 scm {
-                    connection = "scm:git:https@github.com/sogis/ilivalidator-custom-functions"
-                    developerConnection = "scm:git:https@github.com/sogis/ilivalidator-custom-functions"
-                    url = "https://github.com/sogis/ilivalidator-custom-functions"
+                    connection = "scm:git:https@github.com/edigonzales/iox-parquet"
+                    developerConnection = "scm:git:https@github.com/edigonzales/iox-parquet"
+                    url = "https://github.com/edigonzales/iox-parquet"
                 }
                 licenses {
                     license {
                         name = "MIT"
-                        url = "https://github.com/sogis/ilivalidator-custom-functions/blob/master/LICENSE"
+                        url = "https://github.com/edigonzales/iox-parquet/blob/master/LICENSE"
                     }
                 }
                 developers {
