@@ -104,13 +104,6 @@ public class ParquetWriterTest {
         TransferDescription td = compileModel("Test1.ili");
         
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Class1", "o1");
-        //inputObj.setattrvalue("id1", "1");
-        //inputObj.setattrvalue("aText", null);
-        //inputObj.setattrvalue("aDouble", "53434.123");
-        //inputObj.setattrvalue("aDate", "1977-09-23");
-        //inputObj.setattrvalue("aDatetime", "1977-09-23T19:51:35.123");
-        //inputObj.setattrvalue("aTime", "19:51:35.123");
-        //inputObj.setattrvalue("aBoolean", "true");
         
         // Run
         ParquetWriter writer = null;
@@ -861,7 +854,7 @@ public class ParquetWriterTest {
     @Test
     public void attributes_no_description_set_null_value_Ok() throws IoxException, IOException {
         // Prepare
-        File parentDir = new File(TEST_OUT, "attributes_no_description_set_Ok");
+        File parentDir = new File(TEST_OUT, "attributes_no_description_set_null_value_Ok");
         parentDir.mkdirs();
 
         Iom_jObject inputObj1 = new Iom_jObject("Test1.Topic1.Obj1", "o1");

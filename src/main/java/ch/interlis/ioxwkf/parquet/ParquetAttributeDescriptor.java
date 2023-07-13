@@ -1,7 +1,7 @@
 package ch.interlis.ioxwkf.parquet;
 
 // TODO ParquetAttributeDescripton
-// - attrbiuteGeomTypeName -> GPKG (die hoffentlich auch PostGIS entsprechen) Namen, damit man auch Kurven abbilden kann. Resp. das Wissen hat.
+// - attributeGeomTypeName -> GPKG (die hoffentlich auch PostGIS entsprechen) Namen, damit man auch Kurven abbilden kann. Resp. das Wissen hat.
 // Bindings wäre immer ohne Arcs. Eher was für generische AttributeDescriptor.
 public class ParquetAttributeDescriptor {
     private String attributeName;
@@ -82,5 +82,4 @@ public class ParquetAttributeDescriptor {
     public void setGeometry(Boolean geometry) {
         this.geometry = geometry;
     }
-
 }
