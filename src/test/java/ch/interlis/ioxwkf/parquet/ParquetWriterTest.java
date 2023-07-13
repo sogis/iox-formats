@@ -85,8 +85,7 @@ public class ParquetWriterTest {
 //
 //    }
     
-    public TransferDescription compileModel(String iliFileName) throws Ili2cFailure
-    {
+    public TransferDescription compileModel(String iliFileName) throws Ili2cFailure {
         // compile model
         ch.interlis.ili2c.config.Configuration ili2cConfig = new ch.interlis.ili2c.config.Configuration();
         FileEntry fileEntry = new FileEntry(TEST_IN+"/"+iliFileName, FileEntryKind.ILIMODELFILE);
@@ -95,7 +94,6 @@ public class ParquetWriterTest {
         return td;
     }
 
-    
     @Test
     public void model_set_null_values_Ok() throws Exception {
         // Prepare
