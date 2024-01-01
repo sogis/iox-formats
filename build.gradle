@@ -20,8 +20,17 @@ repositories {
     }
 }
 
+// Das ist wirklich komisch. Irgendwie kommen sich "core" und "client" in die Quere.
+// Jedenfalls führt der Verzicht auf "client" zu massiv wenigeren Dependencies (auch in GRETL).
+configurations {
+    testImplementation {
+        exclude(group: 'org.apache.hadoop', module: 'hadoop-core')
+    }
+}
+
 dependencies {
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.apache.hadoop:hadoop-client:3.3.5' // Wegen "HadoopInputFile.fromPath" glaube ich. Beim Writer nicht nötig.
 
     api('ch.interlis:iox-ili:1.21.6') {
         exclude group: 'ch.ehi', module: 'ehibasics'
@@ -32,8 +41,8 @@ dependencies {
     //api group: 'ch.interlis', name: 'iox-wkf', version: '1.1.0'
         
     api 'org.apache.parquet:parquet-hadoop:1.13.1'
-    //api 'org.apache.hadoop:hadoop-core:1.2.1'
-    api 'org.apache.hadoop:hadoop-client:3.3.5'
+    api 'org.apache.hadoop:hadoop-core:1.2.1'
+    //api 'org.apache.hadoop:hadoop-client:3.3.5'
     api 'org.apache.parquet:parquet-avro:1.13.1'
     api 'org.apache.avro:avro:1.11.1'
 }
