@@ -73,18 +73,18 @@ publishing {
             artifact javadocJar
 
             pom {
-                name = "iox-parquet"
-                url = "https://github.com/edigonzales/iox-parquet"
-                description = "iox-parquet"
+                name = "iox-formats"
+                url = "https://github.com/edigonzales/iox-formats"
+                description = "iox-formats"
                 scm {
-                    connection = "scm:git:https@github.com/edigonzales/iox-parquet"
-                    developerConnection = "scm:git:https@github.com/edigonzales/iox-parquet"
-                    url = "https://github.com/edigonzales/iox-parquet"
+                    connection = "scm:git:https@github.com/edigonzales/iox-formats"
+                    developerConnection = "scm:git:https@github.com/edigonzales/iox-formats"
+                    url = "https://github.com/edigonzales/iox-formats"
                 }
                 licenses {
                     license {
                         name = "MIT"
-                        url = "https://github.com/edigonzales/iox-parquet/blob/master/LICENSE"
+                        url = "https://github.com/edigonzales/iox-formats/blob/master/LICENSE"
                     }
                 }
                 developers {
