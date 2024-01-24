@@ -74,17 +74,17 @@ publishing {
 
             pom {
                 name = "iox-formats"
-                url = "https://github.com/edigonzales/iox-formats"
+                url = "https://github.com/sogis/iox-formats"
                 description = "iox-formats"
                 scm {
-                    connection = "scm:git:https@github.com/edigonzales/iox-formats"
-                    developerConnection = "scm:git:https@github.com/edigonzales/iox-formats"
-                    url = "https://github.com/edigonzales/iox-formats"
+                    connection = "scm:git:https@github.com/sogis/iox-formats"
+                    developerConnection = "scm:git:https@github.com/sogis/iox-formats"
+                    url = "https://github.com/sogis/iox-formats"
                 }
                 licenses {
                     license {
                         name = "MIT"
-                        url = "https://github.com/edigonzales/iox-formats/blob/master/LICENSE"
+                        url = "https://github.com/sogis/iox-formats/blob/master/LICENSE"
                     }
                 }
                 developers {

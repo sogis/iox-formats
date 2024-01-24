@@ -1,4 +1,4 @@
-# iox-parquet
+# iox-formats
 
 ```
 
