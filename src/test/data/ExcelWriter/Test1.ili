@@ -1,0 +1,21 @@
+INTERLIS 2.3;
+
+MODEL Test1 (de)
+AT "https://agi.so.ch"
+VERSION "2023-06-16"  =
+
+  TOPIC Topic1 =
+
+    CLASS Class1 =
+      id1 : 1 .. 1000;
+      aText : TEXT*10;
+      aDouble : 0.00 .. 200.00;
+      aDate : INTERLIS.XMLDate;
+      aDatetime : INTERLIS.XMLDateTime;
+      aTime : INTERLIS.XMLTime;
+      aBoolean : BOOLEAN;
+    END Class1;
+
+  END Topic1;
+
+END Test1.

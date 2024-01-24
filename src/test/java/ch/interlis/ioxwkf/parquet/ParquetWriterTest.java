@@ -1,9 +1,5 @@
 package ch.interlis.ioxwkf.parquet;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.time.Instant;
@@ -22,8 +18,10 @@ import org.apache.hadoop.fs.Path;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
-import org.junit.BeforeClass;
-import org.junit.Test;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 import com.vividsolutions.jts.geom.Point;
 
@@ -47,7 +45,7 @@ public class ParquetWriterTest {
 
     private static final Configuration testConf = new Configuration();
 
-    @BeforeClass
+    @BeforeAll
     public static void setupFolder() {
         new File(TEST_OUT).mkdirs();
     }
