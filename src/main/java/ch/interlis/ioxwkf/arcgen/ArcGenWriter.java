@@ -26,6 +26,7 @@ import ch.interlis.iox_j.StartTransferEvent;
 // - Mechanismus, falls keine ID (eindeutiger Wert) mitgeliefert wird.
 // - Es gibt Standardformat und Extended Format. Wir brauchen anscheinend das Extended. Am besten wäre es steuerbar über settings.
 // - Noch keine Modellsupport.
+// - Hardcodiert Uppercase-Attributnamen. Weiss nicht, ob notwendig für sonARMS
 
 // "Spezifikation": siehe PDF in src/main/resources
 public class ArcGenWriter implements IoxWriter {
@@ -33,6 +34,9 @@ public class ArcGenWriter implements IoxWriter {
     private TransferDescription td = null;
     private String[] headerAttrNames = null;
     private boolean firstObj = true;
+    
+    //private Character currentValueDelimiter = DEFAULT_VALUE_DELIMITER;
+    private char currentValueSeparator = '\t';
     
     public ArcGenWriter(File file) throws IoxException {
         this(file, null);
@@ -102,14 +106,19 @@ public class ArcGenWriter implements IoxWriter {
 //                        headerAttrNames = getAttributeNames(iomObj);
 //                    }
                 }
+                try {
+                    writeHeader(headerAttrNames);
+                } catch (IOException e) {
+                    throw new IoxException(e);
+                }
                 firstObj = false;
             }
             String[] validAttrValues = getAttributeValues(headerAttrNames, iomObj);
-            try {
-                writeRecord(validAttrValues);
-            } catch (IOException e) {
-                throw new IoxException(e);
-            }
+//            try {
+//                writeRecord(validAttrValues);
+//            } catch (IOException e) {
+//                throw new IoxException(e);
+//            }
             
             
         } else if (event instanceof EndBasketEvent) {
@@ -118,6 +127,24 @@ public class ArcGenWriter implements IoxWriter {
         } else {
             throw new IoxException("unknown event type "+event.getClass().getName());
         }
+    }
+    
+    private void writeHeader(String[] attrNames) throws IOException {
+        boolean firstName = true;
+        for (String name : attrNames) {
+            if (!firstName) {
+                writer.write(currentValueSeparator);
+            }
+            firstName = false;
+//            if (currentValueDelimiter != null) {
+//                writer.write(currentValueDelimiter);                
+//            }
+            writer.write(name.toUpperCase());
+//            if (currentValueDelimiter != null) {
+//                writer.write(currentValueDelimiter);                
+//            }
+        }
+        writer.newLine();
     }
     
     /*
