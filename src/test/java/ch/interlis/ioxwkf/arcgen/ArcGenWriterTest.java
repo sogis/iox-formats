@@ -3,6 +3,7 @@ package ch.interlis.ioxwkf.arcgen;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,6 +39,7 @@ public class ArcGenWriterTest {
     private static final String TEST_OUT="build/test/data/ArcGenWriter/";
 
     private static final String ID = "id";
+    private static final String EINWOHNER = "einwohner";
     private static final String STADT = "stadt";
     private static final String LAND = "land";
 
@@ -56,7 +58,7 @@ public class ArcGenWriterTest {
 //    }
 
     @Test
-    public void attributes_set_Ok() throws Exception {
+    public void point_Ok() throws Exception {
         // Prepare
         File parentDir = new File(TEST_OUT, "attributes_set_Ok");
         parentDir.mkdirs();
@@ -67,17 +69,15 @@ public class ArcGenWriterTest {
         try {
             writer = new ArcGenWriter(file);            
             writer.write(new StartTransferEvent());
-            writer.setAttributes(new String[] {ID,STADT,LAND});
+            writer.setAttributes(new String[] {EINWOHNER,STADT,LAND});
             writer.write(new StartBasketEvent("model.Topic1","bid1"));
             IomObject iomObj = new Iom_jObject("model.Topic1.Class1","oid1");
-            iomObj.setattrvalue(ID, "10");
-            iomObj.setattrvalue(STADT, "Bern");
-            iomObj.setattrvalue(LAND, "Schweiz");
+            IomObject coordValue = iomObj.addattrobj("attrPoint", "COORD");
+            coordValue.setattrvalue("C1", "2600000.123");
+            coordValue.setattrvalue("C2", "1200000.456");
             writer.write(new ObjectEvent(iomObj));
             writer.write(new EndBasketEvent());
-            writer.write(new EndTransferEvent());
-
-            
+            writer.write(new EndTransferEvent());            
         } catch (IoxException e) {
             throw new IoxException(e);
         } finally {
@@ -91,9 +91,65 @@ public class ArcGenWriterTest {
             }
         }
         
-        
         // Validate
 
+    }    
+    @Test
+    public void attributes_set_Ok() throws Exception {
+        // Prepare
+        File parentDir = new File(TEST_OUT, "attributes_set_Ok");
+        parentDir.mkdirs();
+        
+        // Run
+        ArcGenWriter writer = null;
+        File file = new File(parentDir, "attributes_set_Ok.txt");
+        try {
+            writer = new ArcGenWriter(file);            
+            writer.write(new StartTransferEvent());
+            writer.setAttributes(new String[] {EINWOHNER,STADT,LAND});
+            writer.write(new StartBasketEvent("model.Topic1","bid1"));
+            IomObject iomObj = new Iom_jObject("model.Topic1.Class1","oid1");
+            iomObj.setattrvalue(EINWOHNER, "10");
+            iomObj.setattrvalue(STADT, "Bern");
+            iomObj.setattrvalue(LAND, "Schweiz");
+            writer.write(new ObjectEvent(iomObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch (IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer = null;
+            }
+        }
+        
+        // Validate
+        List<String> allLines = Files.readAllLines(file.toPath());
+
+        for (int i=0; i<allLines.size(); i++) {
+            String[] lineParts = allLines.get(i).split("\t");
+            System.out.println(lineParts[0]);
+            if (i==0) {
+                Assertions.assertEquals("ID",lineParts[0]);
+                Assertions.assertEquals("EINWOHNER",lineParts[1]);
+                Assertions.assertEquals("STADT",lineParts[2]);
+                Assertions.assertEquals("LAND",lineParts[3]);
+            } 
+            if (i==1) {
+                Assertions.assertEquals("1",lineParts[0]);
+                Assertions.assertEquals("10",lineParts[1]);
+                Assertions.assertEquals("Bern",lineParts[2]);
+                Assertions.assertEquals("Schweiz",lineParts[3]);
+            }
+            if (i==2) {
+                Assertions.assertEquals("END",lineParts[0]);
+            }
+        }
     }
     
 //    @Test

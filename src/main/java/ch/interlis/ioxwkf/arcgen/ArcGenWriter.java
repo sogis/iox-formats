@@ -23,10 +23,18 @@ import ch.interlis.iox_j.StartTransferEvent;
 // TODO
 // - Muss Encoding etwas bestimmtes sein? 
 // - Muss/soll Delimiter wählbar sein? Wiederverwenden von CSV...
-// - Mechanismus, falls keine ID (eindeutiger Wert) mitgeliefert wird.
+// - Mechanismus, falls keine ID (eindeutiger Wert) mitgeliefert wird. -> Weil die Reihenfolge der Attribute nicht garantiert ist (?), 
+// mache ich immer eine eigene ID.
 // - Es gibt Standardformat und Extended Format. Wir brauchen anscheinend das Extended. Am besten wäre es steuerbar über settings.
 // - Noch keine Modellsupport.
 // - Hardcodiert Uppercase-Attributnamen. Weiss nicht, ob notwendig für sonARMS
+// - writeChars()-Methode in CsvWriter sehr elaboriert. Ich verzichte darauf. Es sind somit z.B. keine Carriage returns innerhalb eines 
+// Wertes möglich.
+// - Nur eine Geometrie wird unterstützt, wird nicht geprüft.
+
+// FIXME
+// Aaaah, brauche doch AttributeDescriptor, weil ich wissen muss, welches Attribut die Geometrie ist.
+
 
 // "Spezifikation": siehe PDF in src/main/resources
 public class ArcGenWriter implements IoxWriter {
@@ -34,7 +42,9 @@ public class ArcGenWriter implements IoxWriter {
     private TransferDescription td = null;
     private String[] headerAttrNames = null;
     private boolean firstObj = true;
-    
+    private int nextId = 1;
+
+    private static final String ID_ATTR_NAME = "ID";
     //private Character currentValueDelimiter = DEFAULT_VALUE_DELIMITER;
     private char currentValueSeparator = '\t';
     
@@ -114,23 +124,48 @@ public class ArcGenWriter implements IoxWriter {
                 firstObj = false;
             }
             String[] validAttrValues = getAttributeValues(headerAttrNames, iomObj);
-//            try {
-//                writeRecord(validAttrValues);
-//            } catch (IOException e) {
-//                throw new IoxException(e);
-//            }
-            
-            
+            try {
+                writeRecord(validAttrValues);
+            } catch (IOException e) {
+                throw new IoxException(e);
+            }
         } else if (event instanceof EndBasketEvent) {
         } else if (event instanceof EndTransferEvent) {
+            try {
+                writer.write("END");
+            } catch (IOException e) {
+               new IoxException(e.getMessage());
+            }
+
             close();
         } else {
             throw new IoxException("unknown event type "+event.getClass().getName());
         }
     }
     
+    private void writeRecord(String[] attrValues) throws IOException, IoxException {
+        boolean first = true;
+        
+        writer.write(getNextId());
+        writer.write(currentValueSeparator);
+
+        for (String value : attrValues) {
+            if (!first) {
+                writer.write(currentValueSeparator);
+            }
+            //writeChars(value);
+            writer.write(value);
+            first = false;
+        }
+        writer.newLine();
+    }
+
     private void writeHeader(String[] attrNames) throws IOException {
         boolean firstName = true;
+        
+        writer.write(ID_ATTR_NAME);
+        writer.write(currentValueSeparator);
+        
         for (String name : attrNames) {
             if (!firstName) {
                 writer.write(currentValueSeparator);
@@ -159,6 +194,12 @@ public class ArcGenWriter implements IoxWriter {
             attrValues[i] = attrValue;
         }
         return attrValues;
+    }
+
+    private String getNextId() {
+        int count = nextId;
+        nextId += 1;
+        return String.valueOf(count);
     }
 
     @Override
