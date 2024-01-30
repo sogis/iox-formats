@@ -35,10 +35,6 @@ import ch.interlis.ioxwkf.dbtools.AttributeDescriptor;
 // Wertes möglich.
 // - Nur eine Geometrie wird unterstützt, wird nicht geprüft.
 
-// FIXME
-// Aaaah, brauche doch AttributeDescriptor, weil ich wissen muss, welches Attribut die Geometrie ist.
-
-
 // "Spezifikation": siehe PDF in src/main/resources
 public class ArcGenWriter implements IoxWriter {
     private BufferedWriter writer = null;
@@ -78,21 +74,24 @@ public class ArcGenWriter implements IoxWriter {
         this.td = td;
     }
 
-    public void setAttributes(String [] attr) {
-        if(td != null) {
-            throw new IllegalStateException("interlis model must not be set");
-        }
-        headerAttrNames = attr.clone();
-    }
+//    public void setAttributes(String [] attr) {
+//        if(td != null) {
+//            throw new IllegalStateException("interlis model must not be set");
+//        }
+//        headerAttrNames = attr.clone();
+//    }
 
     public void setAttributeDescriptors(AttributeDescriptor[] attrDescs) {
         this.attrDescs = new ArrayList<AttributeDescriptor>();
         for (AttributeDescriptor attrDesc : attrDescs) {
             if (attrDesc.getDbColumnGeomTypeName() != null) {
                 // Nur ein Geometrieattribut möglich.
+                // Geometrie muss zuerst geschrieben werden.
                 iliGeomAttrName = attrDesc.getIomAttributeName();
+                this.attrDescs.add(0, attrDesc);
+            } else {
+                this.attrDescs.add(attrDesc); 
             }
-            this.attrDescs.add(attrDesc);
         }
     } 
     
@@ -133,13 +132,13 @@ public class ArcGenWriter implements IoxWriter {
 //                    }
                 }
                 try {
-                    writeHeader(headerAttrNames);
+                    writeHeader(attrDescs);
                 } catch (IOException e) {
                     throw new IoxException(e);
                 }
                 firstObj = false;
             }
-            String[] validAttrValues = getAttributeValues(headerAttrNames, iomObj);
+            String[] validAttrValues = getAttributeValues(attrDescs, iomObj);
             try {
                 writeRecord(validAttrValues);
             } catch (IOException e) {
@@ -176,25 +175,29 @@ public class ArcGenWriter implements IoxWriter {
         writer.newLine();
     }
 
-    private void writeHeader(String[] attrNames) throws IOException {
+    private void writeHeader(List<AttributeDescriptor> attrDescs) throws IOException {
         boolean firstName = true;
         
+        // Hardcodiertes ID-Attribut mit Maschinenwert. 
         writer.write(ID_ATTR_NAME);
         writer.write(currentValueSeparator);
         
-        for (String name : attrNames) {
-            System.out.println("**: " + name);
+        // Geometrie falls vorhanden
+        // Ohne Geometrie gar nicht korrekt?
+        if (iliGeomAttrName != null) {
+            writer.write(iliGeomAttrName);
+            writer.write(currentValueSeparator);
+        }
+        
+        for (AttributeDescriptor attrDesc : attrDescs) {
+            if (attrDesc.getIomAttributeName().equals(iliGeomAttrName)) {
+                continue;
+            }
             if (!firstName) {
                 writer.write(currentValueSeparator);
             }
             firstName = false;
-//            if (currentValueDelimiter != null) {
-//                writer.write(currentValueDelimiter);                
-//            }
-            writer.write(name.toUpperCase());
-//            if (currentValueDelimiter != null) {
-//                writer.write(currentValueDelimiter);                
-//            }
+            writer.write(attrDesc.getIomAttributeName().toUpperCase());
         }
         writer.newLine();
     }
@@ -204,10 +207,17 @@ public class ArcGenWriter implements IoxWriter {
      * vorkommen. D.h. im IomObject können mehr Attribute vorhanden sein, als dann
      * tatsächlich exportiert werden.
      */
-    private String[] getAttributeValues(String[] attrNames, IomObject currentIomObject) {
-        String[] attrValues = new String[attrNames.length];
-        for (int i = 0; i < attrNames.length; i++) {
-            String attrValue = currentIomObject.getattrvalue(attrNames[i]);
+    private String[] getAttributeValues(List<AttributeDescriptor> attrDescs, IomObject currentIomObject) {
+        String[] attrValues = new String[attrDescs.size()];
+        for (int i = 0; i < attrDescs.size(); i++) {
+            String attrValue;
+            if (attrDescs.get(i).getIomAttributeName().equals(iliGeomAttrName)) {
+                System.out.println("********GEOMETRIE");
+                // TODO Hier muss des encoden passieren.
+                attrValue = "geometrie...";
+            } else {
+                attrValue = currentIomObject.getattrvalue(attrDescs.get(i).getIomAttributeName());                
+            }
             attrValues[i] = attrValue;
         }
         return attrValues;
