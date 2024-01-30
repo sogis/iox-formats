@@ -3,6 +3,8 @@ package ch.interlis.ioxwkf.arcgen;
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.io.File;
 import java.io.IOException;
 
@@ -19,6 +21,7 @@ import ch.interlis.iox_j.EndTransferEvent;
 import ch.interlis.iox_j.ObjectEvent;
 import ch.interlis.iox_j.StartBasketEvent;
 import ch.interlis.iox_j.StartTransferEvent;
+import ch.interlis.ioxwkf.dbtools.AttributeDescriptor;
 
 // TODO
 // - Muss Encoding etwas bestimmtes sein? 
@@ -47,6 +50,9 @@ public class ArcGenWriter implements IoxWriter {
     private static final String ID_ATTR_NAME = "ID";
     //private Character currentValueDelimiter = DEFAULT_VALUE_DELIMITER;
     private char currentValueSeparator = '\t';
+
+    private String iliGeomAttrName = null;
+    private List<AttributeDescriptor> attrDescs = null;
     
     public ArcGenWriter(File file) throws IoxException {
         this(file, null);
@@ -79,6 +85,16 @@ public class ArcGenWriter implements IoxWriter {
         headerAttrNames = attr.clone();
     }
 
+    public void setAttributeDescriptors(AttributeDescriptor[] attrDescs) {
+        this.attrDescs = new ArrayList<AttributeDescriptor>();
+        for (AttributeDescriptor attrDesc : attrDescs) {
+            if (attrDesc.getDbColumnGeomTypeName() != null) {
+                // Nur ein Geometrieattribut möglich.
+                iliGeomAttrName = attrDesc.getIomAttributeName();
+            }
+            this.attrDescs.add(attrDesc);
+        }
+    } 
     
     @Override
     public void close() throws IoxException {
@@ -167,6 +183,7 @@ public class ArcGenWriter implements IoxWriter {
         writer.write(currentValueSeparator);
         
         for (String name : attrNames) {
+            System.out.println("**: " + name);
             if (!firstName) {
                 writer.write(currentValueSeparator);
             }

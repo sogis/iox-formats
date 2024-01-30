@@ -30,6 +30,7 @@ import ch.interlis.iox_j.EndTransferEvent;
 import ch.interlis.iox_j.ObjectEvent;
 import ch.interlis.iox_j.StartBasketEvent;
 import ch.interlis.iox_j.StartTransferEvent;
+import ch.interlis.ioxwkf.dbtools.AttributeDescriptor;
 
 import org.junit.jupiter.api.Assertions;
 
@@ -57,56 +58,82 @@ public class ArcGenWriterTest {
 //        return td;
 //    }
 
+//    @Test
+//    public void point_Ok() throws Exception {
+//        // Prepare
+//        File parentDir = new File(TEST_OUT, "attributes_set_Ok");
+//        parentDir.mkdirs();
+//        
+//        // Run
+//        ArcGenWriter writer = null;
+//        File file = new File(parentDir, "attributes_set_Ok.txt");
+//        try {
+//            writer = new ArcGenWriter(file);            
+//            writer.write(new StartTransferEvent());
+//            writer.setAttributes(new String[] {EINWOHNER,STADT,LAND});
+//            writer.write(new StartBasketEvent("model.Topic1","bid1"));
+//            IomObject iomObj = new Iom_jObject("model.Topic1.Class1","oid1");
+//            IomObject coordValue = iomObj.addattrobj("attrPoint", "COORD");
+//            coordValue.setattrvalue("C1", "2600000.123");
+//            coordValue.setattrvalue("C2", "1200000.456");
+//            writer.write(new ObjectEvent(iomObj));
+//            writer.write(new EndBasketEvent());
+//            writer.write(new EndTransferEvent());            
+//        } catch (IoxException e) {
+//            throw new IoxException(e);
+//        } finally {
+//            if (writer != null) {
+//                try {
+//                    writer.close();
+//                } catch (IoxException e) {
+//                    throw new IoxException(e);
+//                }
+//                writer = null;
+//            }
+//        }
+//        
+//        // Validate
+//
+//    }    
+    
     @Test
-    public void point_Ok() throws Exception {
+    public void setAttributeDescriptors_Ok() throws Exception {
         // Prepare
-        File parentDir = new File(TEST_OUT, "attributes_set_Ok");
+        File parentDir = new File(TEST_OUT, "setAttributeDescriptors_Ok");
         parentDir.mkdirs();
         
-        // Run
-        ArcGenWriter writer = null;
-        File file = new File(parentDir, "attributes_set_Ok.txt");
-        try {
-            writer = new ArcGenWriter(file);            
-            writer.write(new StartTransferEvent());
-            writer.setAttributes(new String[] {EINWOHNER,STADT,LAND});
-            writer.write(new StartBasketEvent("model.Topic1","bid1"));
-            IomObject iomObj = new Iom_jObject("model.Topic1.Class1","oid1");
-            IomObject coordValue = iomObj.addattrobj("attrPoint", "COORD");
-            coordValue.setattrvalue("C1", "2600000.123");
-            coordValue.setattrvalue("C2", "1200000.456");
-            writer.write(new ObjectEvent(iomObj));
-            writer.write(new EndBasketEvent());
-            writer.write(new EndTransferEvent());            
-        } catch (IoxException e) {
-            throw new IoxException(e);
-        } finally {
-            if (writer != null) {
-                try {
-                    writer.close();
-                } catch (IoxException e) {
-                    throw new IoxException(e);
-                }
-                writer = null;
-            }
+        AttributeDescriptor[] attrDescs = new AttributeDescriptor[3];
+
+        {
+            AttributeDescriptor attrDesc = new AttributeDescriptor();
+            attrDesc.setDbColumnName(EINWOHNER);
+            attrDesc.setIomAttributeName(EINWOHNER);
+            attrDesc.setDbColumnTypeName("INTEGER");
+            attrDescs[0] = attrDesc;            
+        }
+        {
+            AttributeDescriptor attrDesc = new AttributeDescriptor();
+            attrDesc.setDbColumnName(STADT);
+            attrDesc.setIomAttributeName(STADT);
+            attrDesc.setDbColumnTypeName("TEXT");
+            attrDescs[1] = attrDesc;            
+        }
+        {
+            AttributeDescriptor attrDesc = new AttributeDescriptor();
+            attrDesc.setDbColumnName(LAND);
+            attrDesc.setIomAttributeName(LAND);
+            attrDesc.setDbColumnTypeName("TEXT");
+            attrDescs[2] = attrDesc;            
         }
         
-        // Validate
-
-    }    
-    @Test
-    public void attributes_set_Ok() throws Exception {
-        // Prepare
-        File parentDir = new File(TEST_OUT, "attributes_set_Ok");
-        parentDir.mkdirs();
-        
         // Run
         ArcGenWriter writer = null;
-        File file = new File(parentDir, "attributes_set_Ok.txt");
+        File file = new File(parentDir, "setAttributeDescriptors_Ok.txt");
         try {
             writer = new ArcGenWriter(file);            
             writer.write(new StartTransferEvent());
-            writer.setAttributes(new String[] {EINWOHNER,STADT,LAND});
+            //writer.setAttributes(new String[] {EINWOHNER,STADT,LAND});
+            writer.setAttributeDescriptors(attrDescs);
             writer.write(new StartBasketEvent("model.Topic1","bid1"));
             IomObject iomObj = new Iom_jObject("model.Topic1.Class1","oid1");
             iomObj.setattrvalue(EINWOHNER, "10");
