@@ -5,6 +5,9 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.vividsolutions.jts.geom.Coordinate;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -21,6 +24,8 @@ import ch.interlis.iox_j.EndTransferEvent;
 import ch.interlis.iox_j.ObjectEvent;
 import ch.interlis.iox_j.StartBasketEvent;
 import ch.interlis.iox_j.StartTransferEvent;
+import ch.interlis.iox_j.jts.Iox2jts;
+import ch.interlis.iox_j.jts.Iox2jtsException;
 import ch.interlis.ioxwkf.dbtools.AttributeDescriptor;
 
 // TODO
@@ -48,7 +53,15 @@ public class ArcGenWriter implements IoxWriter {
     private char currentValueSeparator = '\t';
 
     private String iliGeomAttrName = null;
+    private String geometryType = null;
+    private Integer coordDimension = 2;
     private List<AttributeDescriptor> attrDescs = null;
+    
+    private static final String COORD="COORD";
+    private static final String MULTICOORD="MULTICOORD";
+    private static final String POLYLINE="POLYLINE";
+    private static final String MULTIPOLYLINE="MULTIPOLYLINE";
+    private static final String MULTISURFACE="MULTISURFACE";
     
     public ArcGenWriter(File file) throws IoxException {
         this(file, null);
@@ -88,6 +101,8 @@ public class ArcGenWriter implements IoxWriter {
                 // Nur ein Geometrieattribut möglich.
                 // Geometrie muss zuerst geschrieben werden.
                 iliGeomAttrName = attrDesc.getIomAttributeName();
+                geometryType = attrDesc.getDbColumnGeomTypeName();
+                coordDimension = attrDesc.getCoordDimension();
                 this.attrDescs.add(0, attrDesc);
             } else {
                 this.attrDescs.add(attrDesc); 
@@ -182,11 +197,26 @@ public class ArcGenWriter implements IoxWriter {
         writer.write(ID_ATTR_NAME);
         writer.write(currentValueSeparator);
         
+        // TODO:
+        // Unterschiedliches Verhalten bei Point und Line/Polygon.
+        // Bei Point steht X,Y,Z. Sonst steht nix.
+        
         // Geometrie falls vorhanden
         // Ohne Geometrie gar nicht korrekt?
-        if (iliGeomAttrName != null) {
-            writer.write(iliGeomAttrName);
+                
+        if (iliGeomAttrName != null && geometryType.equals(AttributeDescriptor.GEOMETRYTYPE_POINT)) {
+            writer.write("X");
             writer.write(currentValueSeparator);
+            writer.write("Y");
+            
+            if (coordDimension == 3) {
+                writer.write(currentValueSeparator);
+                writer.write("Z");
+            } 
+            
+            if (attrDescs.size() > 1) {
+                writer.write(currentValueSeparator);
+            }
         }
         
         for (AttributeDescriptor attrDesc : attrDescs) {
@@ -207,20 +237,44 @@ public class ArcGenWriter implements IoxWriter {
      * vorkommen. D.h. im IomObject können mehr Attribute vorhanden sein, als dann
      * tatsächlich exportiert werden.
      */
-    private String[] getAttributeValues(List<AttributeDescriptor> attrDescs, IomObject currentIomObject) {
+    private String[] getAttributeValues(List<AttributeDescriptor> attrDescs, IomObject currentIomObject) throws IoxException {
         String[] attrValues = new String[attrDescs.size()];
         for (int i = 0; i < attrDescs.size(); i++) {
+            System.out.println(attrDescs.get(i).getIomAttributeName());
             String attrValue;
             if (attrDescs.get(i).getIomAttributeName().equals(iliGeomAttrName)) {
-                System.out.println("********GEOMETRIE");
                 // TODO Hier muss des encoden passieren.
-                attrValue = "geometrie...";
+                //attrValue = "geometrie...";
+                attrValue = encodeGeometry(currentIomObject);
             } else {
-                attrValue = currentIomObject.getattrvalue(attrDescs.get(i).getIomAttributeName());                
+                attrValue = currentIomObject.getattrvalue(attrDescs.get(i).getIomAttributeName());     
+                System.out.println("Sachattribut: " + attrValue);
             }
             attrValues[i] = attrValue;
         }
         return attrValues;
+    }
+    
+    private String encodeGeometry(IomObject iomObj) throws IoxException {
+        IomObject geomObj = iomObj.getattrobj(iliGeomAttrName, 0);
+
+        String attrValue = null;
+        if (geomObj != null) {
+            try {
+                if (geomObj.getobjecttag().equals(COORD)) {
+                    Coordinate coord = Iox2jts.coord2JTS(geomObj);
+                    attrValue = String.valueOf(coord.x) + currentValueSeparator + String.valueOf(coord.y);
+                    
+                    if (coordDimension == 3) {
+                        attrValue += currentValueSeparator + String.valueOf(coord.z);
+                    }
+                } 
+            }
+            catch (Iox2jtsException e) {
+                throw new IoxException(e);
+            }
+        }
+        return attrValue;
     }
 
     private String getNextId() {

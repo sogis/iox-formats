@@ -43,6 +43,7 @@ public class ArcGenWriterTest {
     private static final String EINWOHNER = "einwohner";
     private static final String STADT = "stadt";
     private static final String LAND = "land";
+    private static final String GEOM = "geom";
 
     @BeforeAll
     public static void setupFolder() {
@@ -57,44 +58,252 @@ public class ArcGenWriterTest {
 //        TransferDescription td = ch.interlis.ili2c.Ili2c.runCompiler(ili2cConfig);
 //        return td;
 //    }
+    
+    @Test
+    public void linestring_Ok() throws Exception {
+        // Prepare
+        File parentDir = new File(TEST_OUT, "linestring_Ok");
+        parentDir.mkdirs();
+        
+        AttributeDescriptor[] attrDescs = new AttributeDescriptor[1];
 
-//    @Test
-//    public void point_Ok() throws Exception {
-//        // Prepare
-//        File parentDir = new File(TEST_OUT, "attributes_set_Ok");
-//        parentDir.mkdirs();
-//        
-//        // Run
-//        ArcGenWriter writer = null;
-//        File file = new File(parentDir, "attributes_set_Ok.txt");
-//        try {
-//            writer = new ArcGenWriter(file);            
-//            writer.write(new StartTransferEvent());
-//            writer.setAttributes(new String[] {EINWOHNER,STADT,LAND});
-//            writer.write(new StartBasketEvent("model.Topic1","bid1"));
-//            IomObject iomObj = new Iom_jObject("model.Topic1.Class1","oid1");
-//            IomObject coordValue = iomObj.addattrobj("attrPoint", "COORD");
-//            coordValue.setattrvalue("C1", "2600000.123");
-//            coordValue.setattrvalue("C2", "1200000.456");
-//            writer.write(new ObjectEvent(iomObj));
-//            writer.write(new EndBasketEvent());
-//            writer.write(new EndTransferEvent());            
-//        } catch (IoxException e) {
-//            throw new IoxException(e);
-//        } finally {
-//            if (writer != null) {
-//                try {
-//                    writer.close();
-//                } catch (IoxException e) {
-//                    throw new IoxException(e);
-//                }
-//                writer = null;
-//            }
-//        }
-//        
-//        // Validate
-//
-//    }    
+        {
+            AttributeDescriptor attrDesc = new AttributeDescriptor();
+            attrDesc.setDbColumnName(GEOM);
+            attrDesc.setIomAttributeName(GEOM);
+            attrDesc.setDbColumnGeomTypeName(AttributeDescriptor.GEOMETRYTYPE_LINESTRING);
+            attrDesc.setSrId(2056);
+            attrDesc.setCoordDimension(3);
+            attrDescs[0] = attrDesc;            
+        }
+        
+        // Run
+        ArcGenWriter writer = null;
+        File file = new File(parentDir, "linestring_Ok.txt");
+        try {
+            writer = new ArcGenWriter(file);            
+            writer.write(new StartTransferEvent());
+            writer.setAttributeDescriptors(attrDescs);
+            writer.write(new StartBasketEvent("model.Topic1","bid1"));
+            IomObject iomObj = new Iom_jObject("model.Topic1.Class1","oid1");
+            
+            IomObject polylineValue = iomObj.addattrobj("attrLineString2", "POLYLINE");
+            IomObject segments = polylineValue.addattrobj("sequence", "SEGMENTS");
+            IomObject coordStart = segments.addattrobj("segment", "COORD");
+            IomObject coordEnd = segments.addattrobj("segment", "COORD");
+            coordStart.setattrvalue("C1", "-0.22857142857142854");
+            coordStart.setattrvalue("C2", "0.5688311688311687");
+            coordEnd.setattrvalue("C1", "-0.22557142857142853");
+            coordEnd.setattrvalue("C2", "0.5658311688311687");
+
+            
+//            IomObject coordValue = iomObj.addattrobj(GEOM, "COORD");
+//            coordValue.setattrvalue("C1", "2611228.895");
+//            coordValue.setattrvalue("C2", "1227828.112");
+//            coordValue.setattrvalue("C3", "7.10");
+            
+            
+            writer.write(new ObjectEvent(iomObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());            
+        } catch (IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer = null;
+            }
+        }
+        
+        // Validate
+        List<String> allLines = Files.readAllLines(file.toPath());
+
+        for (int i=0; i<allLines.size(); i++) {
+            String[] lineParts = allLines.get(i).split("\t");
+            System.out.println(lineParts[0]);
+            if (i==0) {
+                Assertions.assertEquals("ID",lineParts[0]);
+                Assertions.assertEquals("X",lineParts[1]);
+                Assertions.assertEquals("Y",lineParts[2]);
+                Assertions.assertEquals("Z",lineParts[3]);
+            } 
+            if (i==1) {
+                Assertions.assertEquals("1",lineParts[0]);
+                Assertions.assertEquals("2611228.895",lineParts[1]);
+                Assertions.assertEquals("1227828.112",lineParts[2]);
+                Assertions.assertEquals("7.1",lineParts[3]);
+            }
+            if (i==2) {
+                Assertions.assertEquals("END",lineParts[0]);
+            }
+        }
+    }    
+
+    
+    @Test
+    public void point2d_setAttributes_Ok() throws Exception {
+        // Prepare
+        File parentDir = new File(TEST_OUT, "point2d_setAttributes_Ok");
+        parentDir.mkdirs();
+        
+        AttributeDescriptor[] attrDescs = new AttributeDescriptor[3];
+
+        {
+            AttributeDescriptor attrDesc = new AttributeDescriptor();
+            attrDesc.setDbColumnName(EINWOHNER);
+            attrDesc.setIomAttributeName(EINWOHNER);
+            attrDesc.setDbColumnTypeName("INTEGER");
+            attrDescs[0] = attrDesc;            
+        }
+        {
+            AttributeDescriptor attrDesc = new AttributeDescriptor();
+            attrDesc.setDbColumnName(GEOM);
+            attrDesc.setIomAttributeName(GEOM);
+            attrDesc.setDbColumnGeomTypeName(AttributeDescriptor.GEOMETRYTYPE_POINT);
+            attrDesc.setSrId(2056);
+            attrDesc.setCoordDimension(2);
+            attrDescs[1] = attrDesc;            
+        }
+        {
+            AttributeDescriptor attrDesc = new AttributeDescriptor();
+            attrDesc.setDbColumnName(STADT);
+            attrDesc.setIomAttributeName(STADT);
+            attrDesc.setDbColumnTypeName("TEXT");
+            attrDescs[2] = attrDesc;            
+        }
+
+        
+        // Run
+        ArcGenWriter writer = null;
+        File file = new File(parentDir, "point2d_setAttributes_Ok.txt");
+        try {
+            writer = new ArcGenWriter(file);            
+            writer.write(new StartTransferEvent());
+            writer.setAttributeDescriptors(attrDescs);
+            writer.write(new StartBasketEvent("model.Topic1","bid1"));
+            IomObject iomObj = new Iom_jObject("model.Topic1.Class1","oid1");
+            iomObj.setattrvalue(EINWOHNER, "10");
+            iomObj.setattrvalue(STADT, "Bern");
+            IomObject coordValue = iomObj.addattrobj(GEOM, "COORD");
+            coordValue.setattrvalue("C1", "2611228.895");
+            coordValue.setattrvalue("C2", "1227828.112");
+            writer.write(new ObjectEvent(iomObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());            
+        } catch (IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer = null;
+            }
+        }
+        
+        // Validate
+        List<String> allLines = Files.readAllLines(file.toPath());
+
+        for (int i=0; i<allLines.size(); i++) {
+            String[] lineParts = allLines.get(i).split("\t");
+            System.out.println(lineParts[0]);
+            if (i==0) {
+                Assertions.assertEquals("ID",lineParts[0]);
+                Assertions.assertEquals("X",lineParts[1]);
+                Assertions.assertEquals("Y",lineParts[2]);
+                Assertions.assertEquals("EINWOHNER",lineParts[3]);
+                Assertions.assertEquals("STADT",lineParts[4]);
+            } 
+            if (i==1) {
+                Assertions.assertEquals("1",lineParts[0]);
+                Assertions.assertEquals("2611228.895",lineParts[1]);
+                Assertions.assertEquals("1227828.112",lineParts[2]);
+                Assertions.assertEquals("10",lineParts[3]);
+                Assertions.assertEquals("Bern",lineParts[4]);
+            }
+            if (i==2) {
+                Assertions.assertEquals("END",lineParts[0]);
+            }
+        }
+    }    
+
+
+    @Test
+    public void point_Ok() throws Exception {
+        // Prepare
+        File parentDir = new File(TEST_OUT, "point_Ok");
+        parentDir.mkdirs();
+        
+        AttributeDescriptor[] attrDescs = new AttributeDescriptor[1];
+
+        {
+            AttributeDescriptor attrDesc = new AttributeDescriptor();
+            attrDesc.setDbColumnName(GEOM);
+            attrDesc.setIomAttributeName(GEOM);
+            attrDesc.setDbColumnGeomTypeName(AttributeDescriptor.GEOMETRYTYPE_POINT);
+            attrDesc.setSrId(2056);
+            attrDesc.setCoordDimension(3);
+            attrDescs[0] = attrDesc;            
+        }
+        
+        // Run
+        ArcGenWriter writer = null;
+        File file = new File(parentDir, "point_Ok.txt");
+        try {
+            writer = new ArcGenWriter(file);            
+            writer.write(new StartTransferEvent());
+            writer.setAttributeDescriptors(attrDescs);
+            writer.write(new StartBasketEvent("model.Topic1","bid1"));
+            IomObject iomObj = new Iom_jObject("model.Topic1.Class1","oid1");
+            IomObject coordValue = iomObj.addattrobj(GEOM, "COORD");
+            coordValue.setattrvalue("C1", "2611228.895");
+            coordValue.setattrvalue("C2", "1227828.112");
+            coordValue.setattrvalue("C3", "7.10");
+            writer.write(new ObjectEvent(iomObj));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());            
+        } catch (IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer = null;
+            }
+        }
+        
+        // Validate
+        List<String> allLines = Files.readAllLines(file.toPath());
+
+        for (int i=0; i<allLines.size(); i++) {
+            String[] lineParts = allLines.get(i).split("\t");
+            System.out.println(lineParts[0]);
+            if (i==0) {
+                Assertions.assertEquals("ID",lineParts[0]);
+                Assertions.assertEquals("X",lineParts[1]);
+                Assertions.assertEquals("Y",lineParts[2]);
+                Assertions.assertEquals("Z",lineParts[3]);
+            } 
+            if (i==1) {
+                Assertions.assertEquals("1",lineParts[0]);
+                Assertions.assertEquals("2611228.895",lineParts[1]);
+                Assertions.assertEquals("1227828.112",lineParts[2]);
+                Assertions.assertEquals("7.1",lineParts[3]);
+            }
+            if (i==2) {
+                Assertions.assertEquals("END",lineParts[0]);
+            }
+        }
+    }    
     
     @Test
     public void setAttributeDescriptors_Ok() throws Exception {
