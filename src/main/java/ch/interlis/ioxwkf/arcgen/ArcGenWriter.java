@@ -4,7 +4,9 @@ import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.vividsolutions.jts.geom.Coordinate;
 
@@ -158,7 +160,7 @@ public class ArcGenWriter implements IoxWriter {
                 }
                 firstObj = false;
             }
-            String[] validAttrValues = getAttributeValues(attrDescs, iomObj);
+            Map<String,String> validAttrValues = getAttributeValues(attrDescs, iomObj);
             try {
                 writeRecord(validAttrValues);
             } catch (IOException e) {
@@ -180,12 +182,16 @@ public class ArcGenWriter implements IoxWriter {
     
     // Hier müsste wieder Reihenfolge-Logik rein, wenn es nur String-Array ist
     // Braucht ggf auch Linebreak.
-    private void writeRecord(String[] attrValues) throws IOException, IoxException {
+    // HashMap? name und value?
+    private void writeRecord(Map<String,String> attrValues) throws IOException, IoxException {
         boolean first = true;
         
         writer.write(getNextId());
         writer.write(currentValueSeparator);
 
+        // Hier for() mit attrDesc. Gleich wie bei writerHeader.
+        // Dann sollte die Reihenfolge gleich dem Header sein.
+        
         for (String value : attrValues) {
             if (!first) {
                 writer.write(currentValueSeparator);
@@ -247,10 +253,12 @@ public class ArcGenWriter implements IoxWriter {
      */
     
     // FIXME: Reihenfolge stimmt nun nicht, weil attrDescs nicht mehr sortiert.
-    private String[] getAttributeValues(List<AttributeDescriptor> attrDescs, IomObject currentIomObject) throws IoxException {
-        String[] attrValues = new String[attrDescs.size()];
+    private Map<String,String> getAttributeValues(List<AttributeDescriptor> attrDescs, IomObject currentIomObject) throws IoxException {
+        //String[] attrValues = new String[attrDescs.size()];
+        Map<String,String> attrValues = new HashMap<>();
         for (int i = 0; i < attrDescs.size(); i++) {
             System.out.println(attrDescs.get(i).getIomAttributeName());
+            String attrName = attrDescs.get(i).getIomAttributeName();
             String attrValue;
             if (attrDescs.get(i).getIomAttributeName().equals(iliGeomAttrName)) {
                 // TODO Hier muss des encoden passieren.
@@ -260,7 +268,7 @@ public class ArcGenWriter implements IoxWriter {
                 attrValue = currentIomObject.getattrvalue(attrDescs.get(i).getIomAttributeName());     
                 System.out.println("Sachattribut: " + attrValue);
             }
-            attrValues[i] = attrValue;
+            attrValues.put(attrName, attrValue);
         }
         return attrValues;
     }
