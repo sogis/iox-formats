@@ -97,20 +97,22 @@ public class ArcGenWriter implements IoxWriter {
     // Das Geometrieattribut wird an erster Stelle platziert.
     // TODO: Nochmals über die Bücher, ob wirklich sinnvoll und
     // notwendig. Sonst einfache beim Header zweimal interieren.
-    public void setAttributeDescriptors(AttributeDescriptor[] attrDescs) {
+    public void setAttributeDescriptors(AttributeDescriptor[] attrDescs) throws IoxException {
         this.attrDescs = new ArrayList<AttributeDescriptor>();
         for (AttributeDescriptor attrDesc : attrDescs) {
             if (attrDesc.getDbColumnGeomTypeName() != null) {
-                // Nur ein Geometrieattribut möglich.
-                // Geometrie muss zuerst geschrieben werden.
+                if (iliGeomAttrName != null) {
+                    throw new IoxException("only one geometry attribute allowed");
+                }
                 iliGeomAttrName = attrDesc.getIomAttributeName();
                 geometryType = attrDesc.getDbColumnGeomTypeName();
                 coordDimension = attrDesc.getCoordDimension();
-                this.attrDescs.add(0, attrDesc);
-            } else {
-                this.attrDescs.add(attrDesc); 
             }
+            this.attrDescs.add(attrDesc); 
         }
+        if (iliGeomAttrName == null) {
+            throw new IoxException("no geometry attribute found");
+        } 
     } 
     
     @Override
@@ -130,8 +132,8 @@ public class ArcGenWriter implements IoxWriter {
         if (event instanceof StartTransferEvent) {
         } else if (event instanceof StartBasketEvent) {
         } else if (event instanceof ObjectEvent) {
-            ObjectEvent obj=(ObjectEvent) event;
-            IomObject iomObj=(IomObject)obj.getIomObject();
+            ObjectEvent obj = (ObjectEvent) event;
+            IomObject iomObj = (IomObject)obj.getIomObject();
             if(firstObj) {
                 // get list of attr names
                 if (td != null) {
@@ -176,6 +178,8 @@ public class ArcGenWriter implements IoxWriter {
         }
     }
     
+    // Hier müsste wieder Reihenfolge-Logik rein, wenn es nur String-Array ist
+    // Braucht ggf auch Linebreak.
     private void writeRecord(String[] attrValues) throws IOException, IoxException {
         boolean first = true;
         
@@ -200,30 +204,31 @@ public class ArcGenWriter implements IoxWriter {
         writer.write(ID_ATTR_NAME);
         writer.write(currentValueSeparator);
         
-        // TODO:
-        // Unterschiedliches Verhalten bei Point und Line/Polygon.
-        // Bei Point steht X,Y,Z. Sonst steht nix.
-        
-        // Geometrie falls vorhanden
-        // Ohne Geometrie gar nicht korrekt?
+        // first loop to find out geometry attribute
+        for (AttributeDescriptor attrDesc : attrDescs) {
+            // FIXME: isGeometry() wirft NullPointer. -> Ticket machen
+            if (attrDesc.getDbColumnGeomTypeName() != null) {
                 
-        if (iliGeomAttrName != null && geometryType.equals(AttributeDescriptor.GEOMETRYTYPE_POINT)) {
-            writer.write("X");
-            writer.write(currentValueSeparator);
-            writer.write("Y");
-            
-            if (coordDimension == 3) {
+                // TODO andere Geometrietypen
+                
+                writer.write("X");
                 writer.write(currentValueSeparator);
-                writer.write("Z");
-            } 
-            
-            if (attrDescs.size() > 1) {
-                writer.write(currentValueSeparator);
+                writer.write("Y");
+                
+                if (coordDimension == 3) {
+                    writer.write(currentValueSeparator);
+                    writer.write("Z");
+                } 
+                
+                if (attrDescs.size() > 1) {
+                    writer.write(currentValueSeparator);
+                }
             }
         }
         
+        // second loop for all other attributes
         for (AttributeDescriptor attrDesc : attrDescs) {
-            if (attrDesc.getIomAttributeName().equals(iliGeomAttrName)) {
+            if (attrDesc.getDbColumnGeomTypeName() != null) {
                 continue;
             }
             if (!firstName) {
@@ -240,6 +245,8 @@ public class ArcGenWriter implements IoxWriter {
      * vorkommen. D.h. im IomObject können mehr Attribute vorhanden sein, als dann
      * tatsächlich exportiert werden.
      */
+    
+    // FIXME: Reihenfolge stimmt nun nicht, weil attrDescs nicht mehr sortiert.
     private String[] getAttributeValues(List<AttributeDescriptor> attrDescs, IomObject currentIomObject) throws IoxException {
         String[] attrValues = new String[attrDescs.size()];
         for (int i = 0; i < attrDescs.size(); i++) {
