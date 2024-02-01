@@ -93,7 +93,10 @@ public class ArcGenWriter implements IoxWriter {
 //        }
 //        headerAttrNames = attr.clone();
 //    }
-
+    
+    // Das Geometrieattribut wird an erster Stelle platziert.
+    // TODO: Nochmals über die Bücher, ob wirklich sinnvoll und
+    // notwendig. Sonst einfache beim Header zweimal interieren.
     public void setAttributeDescriptors(AttributeDescriptor[] attrDescs) {
         this.attrDescs = new ArrayList<AttributeDescriptor>();
         for (AttributeDescriptor attrDesc : attrDescs) {

@@ -93,8 +93,10 @@ public class ArcGenWriterTest {
             IomObject coordEnd = segments.addattrobj("segment", "COORD");
             coordStart.setattrvalue("C1", "-0.22857142857142854");
             coordStart.setattrvalue("C2", "0.5688311688311687");
+            coordStart.setattrvalue("C3", "7.10");
             coordEnd.setattrvalue("C1", "-0.22557142857142853");
             coordEnd.setattrvalue("C2", "0.5658311688311687");
+            coordEnd.setattrvalue("C3", "7.10");
 
             
 //            IomObject coordValue = iomObj.addattrobj(GEOM, "COORD");
