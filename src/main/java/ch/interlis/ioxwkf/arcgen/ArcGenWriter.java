@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.LineString;
+import com.vividsolutions.jts.geom.Polygon;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,6 +30,7 @@ import ch.interlis.iox_j.StartBasketEvent;
 import ch.interlis.iox_j.StartTransferEvent;
 import ch.interlis.iox_j.jts.Iox2jts;
 import ch.interlis.iox_j.jts.Iox2jtsException;
+import ch.interlis.iox_j.jts.Iox2jtsext;
 import ch.interlis.ioxwkf.dbtools.AttributeDescriptor;
 
 // TODO
@@ -88,17 +91,7 @@ public class ArcGenWriter implements IoxWriter {
         }
         this.td = td;
     }
-
-//    public void setAttributes(String [] attr) {
-//        if(td != null) {
-//            throw new IllegalStateException("interlis model must not be set");
-//        }
-//        headerAttrNames = attr.clone();
-//    }
     
-    // Das Geometrieattribut wird an erster Stelle platziert.
-    // TODO: Nochmals über die Bücher, ob wirklich sinnvoll und
-    // notwendig. Sonst einfache beim Header zweimal interieren.
     public void setAttributeDescriptors(AttributeDescriptor[] attrDescs) throws IoxException {
         this.attrDescs = new ArrayList<AttributeDescriptor>();
         for (AttributeDescriptor attrDesc : attrDescs) {
@@ -180,26 +173,45 @@ public class ArcGenWriter implements IoxWriter {
         }
     }
     
-    // Hier müsste wieder Reihenfolge-Logik rein, wenn es nur String-Array ist
-    // Braucht ggf auch Linebreak.
-    // HashMap? name und value?
     private void writeRecord(Map<String,String> attrValues) throws IOException, IoxException {
-        boolean first = true;
-        
         writer.write(getNextId());
-        writer.write(currentValueSeparator);
 
-        // Hier for() mit attrDesc. Gleich wie bei writerHeader.
-        // Dann sollte die Reihenfolge gleich dem Header sein.
-        
-        for (String value : attrValues) {
-            if (!first) {
-                writer.write(currentValueSeparator);
+        // Punktgeometrien
+        for (AttributeDescriptor attrDesc : attrDescs) {
+            if (attrDesc.getDbColumnGeomTypeName() != null) {
+                String attrValue = attrValues.get(attrDesc.getIomAttributeName());
+                if (attrDesc.getDbColumnGeomTypeName().equals(AttributeDescriptor.GEOMETRYTYPE_POINT)) {
+                    writer.write(currentValueSeparator);
+                    writer.write(attrValue);
+                    break;
+                }
             }
-            //writeChars(value);
-            writer.write(value);
-            first = false;
         }
+        
+        // Sachattribute
+        for (AttributeDescriptor attrDesc : attrDescs) {
+            if (attrDesc.getDbColumnGeomTypeName() != null) {
+                continue;
+            }
+            writer.write(currentValueSeparator);
+            String attrValue = attrValues.get(attrDesc.getIomAttributeName());
+            writer.write(attrValue);            
+        }
+        
+        // Linien und Flächen
+        for (AttributeDescriptor attrDesc : attrDescs) {
+            if (attrDesc.getDbColumnGeomTypeName() != null) {
+                String attrValue = attrValues.get(attrDesc.getIomAttributeName());
+                if (attrDesc.getDbColumnGeomTypeName().equals(AttributeDescriptor.GEOMETRYTYPE_LINESTRING)) {
+                    writer.write(attrValue);
+                    break;
+                } else if (attrDesc.getDbColumnGeomTypeName().equals(AttributeDescriptor.GEOMETRYTYPE_POLYGON)) {
+                    writer.write(attrValue);
+                    break;
+                }
+            }
+        }
+                
         writer.newLine();
     }
 
@@ -208,26 +220,25 @@ public class ArcGenWriter implements IoxWriter {
         
         // Hardcodiertes ID-Attribut mit Maschinenwert. 
         writer.write(ID_ATTR_NAME);
-        writer.write(currentValueSeparator);
         
         // first loop to find out geometry attribute
         for (AttributeDescriptor attrDesc : attrDescs) {
             // FIXME: isGeometry() wirft NullPointer. -> Ticket machen
-            if (attrDesc.getDbColumnGeomTypeName() != null) {
-                
-                // TODO andere Geometrietypen
-                
-                writer.write("X");
-                writer.write(currentValueSeparator);
-                writer.write("Y");
-                
-                if (coordDimension == 3) {
+            if (attrDesc.getDbColumnGeomTypeName() != null) {                
+                if (attrDesc.getDbColumnGeomTypeName().equals(AttributeDescriptor.GEOMETRYTYPE_POINT)) {
                     writer.write(currentValueSeparator);
-                    writer.write("Z");
-                } 
-                
-                if (attrDescs.size() > 1) {
+                    writer.write("X");
                     writer.write(currentValueSeparator);
+                    writer.write("Y");
+                    
+                    if (coordDimension == 3) {
+                        writer.write(currentValueSeparator);
+                        writer.write("Z");
+                    }                   
+                } else if (attrDesc.getDbColumnGeomTypeName().equals(AttributeDescriptor.GEOMETRYTYPE_LINESTRING)) {
+                    // do nothing since linestring is appended on new line without attribute name in header
+                } else if (attrDesc.getDbColumnGeomTypeName().equals(AttributeDescriptor.GEOMETRYTYPE_POLYGON)) {
+                    // siehe oben                    
                 }
             }
         }
@@ -237,9 +248,8 @@ public class ArcGenWriter implements IoxWriter {
             if (attrDesc.getDbColumnGeomTypeName() != null) {
                 continue;
             }
-            if (!firstName) {
-                writer.write(currentValueSeparator);
-            }
+            writer.write(currentValueSeparator);
+
             firstName = false;
             writer.write(attrDesc.getIomAttributeName().toUpperCase());
         }
@@ -250,33 +260,27 @@ public class ArcGenWriter implements IoxWriter {
      * Es werden nur die Attribute in die Datei geschrieben, die auch in attrNames
      * vorkommen. D.h. im IomObject können mehr Attribute vorhanden sein, als dann
      * tatsächlich exportiert werden.
-     */
-    
-    // FIXME: Reihenfolge stimmt nun nicht, weil attrDescs nicht mehr sortiert.
+     * Liefert die String-Repräsentation zurück (Geometrie so wie sie sein muss gemäss ArcGenerate).
+     */    
     private Map<String,String> getAttributeValues(List<AttributeDescriptor> attrDescs, IomObject currentIomObject) throws IoxException {
-        //String[] attrValues = new String[attrDescs.size()];
         Map<String,String> attrValues = new HashMap<>();
         for (int i = 0; i < attrDescs.size(); i++) {
-            System.out.println(attrDescs.get(i).getIomAttributeName());
             String attrName = attrDescs.get(i).getIomAttributeName();
             String attrValue;
             if (attrDescs.get(i).getIomAttributeName().equals(iliGeomAttrName)) {
-                // TODO Hier muss des encoden passieren.
-                //attrValue = "geometrie...";
                 attrValue = encodeGeometry(currentIomObject);
             } else {
                 attrValue = currentIomObject.getattrvalue(attrDescs.get(i).getIomAttributeName());     
-                System.out.println("Sachattribut: " + attrValue);
             }
             attrValues.put(attrName, attrValue);
-        }
+        }        
         return attrValues;
     }
     
     private String encodeGeometry(IomObject iomObj) throws IoxException {
         IomObject geomObj = iomObj.getattrobj(iliGeomAttrName, 0);
 
-        String attrValue = null;
+        String attrValue = "";
         if (geomObj != null) {
             try {
                 if (geomObj.getobjecttag().equals(COORD)) {
@@ -286,7 +290,35 @@ public class ArcGenWriter implements IoxWriter {
                     if (coordDimension == 3) {
                         attrValue += currentValueSeparator + String.valueOf(coord.z);
                     }
-                } 
+                } else if (geomObj.getobjecttag().equals(POLYLINE)) {
+                    attrValue += System.lineSeparator();
+                    LineString line = Iox2jts.polyline2JTSlineString(geomObj, false, 0.01);
+                    Coordinate[] coords = line.getCoordinates();
+                    for (int i=0; i<coords.length; i++) {
+                        Coordinate coord = coords[i];
+                        attrValue += String.valueOf(coord.x) + currentValueSeparator + String.valueOf(coord.y);
+                        if (coordDimension == 3) {
+                            attrValue += currentValueSeparator + String.valueOf(coord.z);
+                        }
+                        attrValue += System.lineSeparator();
+                    }
+                    attrValue += "END";
+                } else if (geomObj.getobjecttag().equals(MULTISURFACE)) {
+                    attrValue += System.lineSeparator();
+                    Polygon poly = Iox2jtsext.surface2JTS(geomObj, 0.01); // Die nicht ext-Variante hat dopplete Stützpunkte. Ist das nicht gefixed?
+                    // Es wird nur der äussere Ring verwendet.
+                    LineString line = poly.getExteriorRing();
+                    Coordinate[] coords = line.getCoordinates();
+                    for (int i=0; i<coords.length; i++) {
+                        Coordinate coord = coords[i];
+                        attrValue += String.valueOf(coord.x) + currentValueSeparator + String.valueOf(coord.y);
+                        if (coordDimension == 3) {
+                            attrValue += currentValueSeparator + String.valueOf(coord.z);
+                        }
+                        attrValue += System.lineSeparator();
+                    }
+                    attrValue += "END";
+                }
             }
             catch (Iox2jtsException e) {
                 throw new IoxException(e);
