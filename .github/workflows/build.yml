@@ -54,7 +54,7 @@ jobs:
 
       - name: Publish library jar file (stable)
         if: ${{ success() && (github.ref == 'refs/heads/stable')}}
-        run: ./gradlew -i -Drelease= publishToSonatype closeAndReleaseSonatypeStagingRepository -Psigning.keyId=${{secrets.SIGNING_KEY_ID}} -Psigning.password=${{secrets.SIGNING_PASSWORD}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/sonatype_upload.gpg)
+        run: ./gradlew -i publishToSonatype closeAndReleaseSonatypeStagingRepository -Psigning.keyId=${{secrets.SIGNING_KEY_ID}} -Psigning.password=${{secrets.SIGNING_PASSWORD}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/sonatype_upload.gpg) -Drelease=
         env:
           OSSRH_USERNAME: ${{secrets.OSSRH_USERNAME}}
           OSSRH_PASSWORD: ${{secrets.OSSRH_PASSWORD}} 
