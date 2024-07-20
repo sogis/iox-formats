@@ -5,7 +5,7 @@ plugins {
     id "io.github.gradle-nexus.publish-plugin" version "1.1.0"
 }
 
-version '1.0.1'+System.getProperty('release','-SNAPSHOT')
+version '1.0.2'+System.getProperty('release','-SNAPSHOT')
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
