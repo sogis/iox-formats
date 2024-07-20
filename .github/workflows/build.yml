@@ -12,24 +12,22 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
       - name: Set up JDK 8
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           java-version: '8'
           distribution: 'temurin'
-          
-      - name: Build with Gradle
-        id: buildArtefact
+          cache: 'gradle'
+
+      - name: Build with Gradle (snapshot)
+        if: ${{ success() && github.ref == 'refs/heads/snapshot'}}
+        id: buildSnapshotArtefact
         run: TZ=Europe/Zurich ./gradlew clean build 
+
+      - name: Build with Gradle (stable)
+        if: ${{ success() && github.ref == 'refs/heads/main'}}
+        id: buildStableArtefact
+        run: TZ=Europe/Zurich ./gradlew clean build -Drelease= 
 
       - uses: actions/upload-artifact@v2
         if: ${{ failure() }}
@@ -38,13 +36,13 @@ jobs:
           path: build/reports/tests/
 
       - name: Decode
-        if: always() && (steps.buildArtefact.outcome == 'success')
+        if: always() && (steps.buildSnapshotArtefact.outcome == 'success' || steps.buildStableArtefact.outcome == 'success')
         run: |
           echo "${{secrets.SIGNING_SECRET_KEY_RING_FILE}}" > ~/.gradle/sonatype_upload.gpg.b64
           base64 -d ~/.gradle/sonatype_upload.gpg.b64 > ~/.gradle/sonatype_upload.gpg
 
       - name: Publish library jar file
-        if: ${{ success() && github.ref == 'refs/heads/main'}}
+        if: ${{ success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/snapshot')}}
         run: ./gradlew -i publishToSonatype closeAndReleaseSonatypeStagingRepository -Psigning.keyId=${{secrets.SIGNING_KEY_ID}} -Psigning.password=${{secrets.SIGNING_PASSWORD}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/sonatype_upload.gpg)
         env:
           OSSRH_USERNAME: ${{secrets.OSSRH_USERNAME}}
