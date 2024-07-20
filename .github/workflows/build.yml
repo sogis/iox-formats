@@ -20,14 +20,18 @@ jobs:
           cache: 'gradle'
 
       - name: Build with Gradle (snapshot)
-        if: ${{ success() && github.ref == 'refs/heads/snapshot'}}
+        if: ${{ success() && github.ref == 'refs/heads/main'}}
         id: buildSnapshotArtefact
         run: TZ=Europe/Zurich ./gradlew clean build 
 
       - name: Build with Gradle (stable)
-        if: ${{ success() && github.ref == 'refs/heads/main'}}
+        if: ${{ success() && github.ref == 'refs/heads/stable'}}
         id: buildStableArtefact
         run: TZ=Europe/Zurich ./gradlew clean build -Drelease= 
+
+      - name: Debug 1
+        run: |
+          ls -la build/libs
 
       - uses: actions/upload-artifact@v2
         if: ${{ failure() }}
@@ -42,7 +46,7 @@ jobs:
           base64 -d ~/.gradle/sonatype_upload.gpg.b64 > ~/.gradle/sonatype_upload.gpg
 
       - name: Publish library jar file
-        if: ${{ success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/snapshot')}}
+        if: ${{ success() && (github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/main')}}
         run: ./gradlew -i publishToSonatype closeAndReleaseSonatypeStagingRepository -Psigning.keyId=${{secrets.SIGNING_KEY_ID}} -Psigning.password=${{secrets.SIGNING_PASSWORD}} -Psigning.secretKeyRingFile=$(echo ~/.gradle/sonatype_upload.gpg)
         env:
           OSSRH_USERNAME: ${{secrets.OSSRH_USERNAME}}
