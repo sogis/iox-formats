@@ -33,19 +33,19 @@ import ch.interlis.iox_j.jts.Iox2jtsException;
 import ch.interlis.iox_j.jts.Iox2jtsext;
 import ch.interlis.ioxwkf.dbtools.AttributeDescriptor;
 
-// TODO
-// - Muss Encoding etwas bestimmtes sein? 
-// - Muss/soll Delimiter wählbar sein? Wiederverwenden von CSV...
-// - Mechanismus, falls keine ID (eindeutiger Wert) mitgeliefert wird. -> Weil die Reihenfolge der Attribute nicht garantiert ist (?), 
-// mache ich immer eine eigene ID.
-// - Es gibt Standardformat und Extended Format. Wir brauchen anscheinend das Extended. Am besten wäre es steuerbar über settings.
-// - Noch keine Modellsupport.
-// - Hardcodiert Uppercase-Attributnamen. Weiss nicht, ob notwendig für sonARMS
-// - writeChars()-Methode in CsvWriter sehr elaboriert. Ich verzichte darauf. Es sind somit z.B. keine Carriage returns innerhalb eines 
-// Wertes möglich.
-// - Nur eine Geometrie wird unterstützt, wird nicht geprüft.
+// Bemerkungen:
+// - Es wird ein Primary Key Attribute ("ID") immer hinzugefügt.
+// - Es gibt ein Arc Generate Standardformat und ein Extended Format. Es wurde das Extended Format umgesetzt. So wie ich es verstehen
+// benötigt sonARMS dieses Extended Format.
+// - Es gibt kein Modellsupport und auch kein ad-hoc-Schema-Support, d.h. die Attributedescriptions müssen von aussen gesetzt werden.
+// - Die Attributnamen werden mit Grossbuchstaben geschrieben.
+// - Es wird nur eine Geometrie pro Feature unterstützt. Wird nicht geprüft.
+// - Spezifikation: Siehe PDF in src/main/resources
 
-// "Spezifikation": siehe PDF in src/main/resources
+// Fragen:
+// - Ist das Encoding vorgegeben?
+// - Muss/soll Delimiter wählbar sein (falls ja, siehe CSV-Format in iox-ili).
+
 public class ArcGenWriter implements IoxWriter {
     private BufferedWriter writer = null;
     private TransferDescription td = null;
@@ -305,7 +305,7 @@ public class ArcGenWriter implements IoxWriter {
                     attrValue += "END";
                 } else if (geomObj.getobjecttag().equals(MULTISURFACE)) {
                     attrValue += System.lineSeparator();
-                    Polygon poly = Iox2jtsext.surface2JTS(geomObj, 0.01); // Die nicht ext-Variante hat dopplete Stützpunkte. Ist das nicht gefixed?
+                    Polygon poly = Iox2jtsext.surface2JTS(geomObj, 0.01); // Die nicht ext-Variante hat doppelte Stützpunkte. Ist das nicht gefixed?
                     // Es wird nur der äussere Ring verwendet.
                     LineString line = poly.getExteriorRing();
                     Coordinate[] coords = line.getCoordinates();
