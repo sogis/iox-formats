@@ -47,6 +47,8 @@ dependencies {
     
     api 'org.apache.poi:poi:5.2.3'
     api 'org.apache.poi:poi-ooxml:5.2.3'
+    api 'commons-io:commons-io:2.6'
+    
 }
 
 tasks.named('test') {

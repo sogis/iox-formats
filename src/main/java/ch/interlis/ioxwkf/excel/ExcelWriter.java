@@ -3,6 +3,7 @@ package ch.interlis.ioxwkf.excel;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CreationHelper;
@@ -53,6 +55,7 @@ public class ExcelWriter implements IoxWriter {
     private XSSFWorkbook workbook = null;
     private XSSFSheet sheet = null;
     private CreationHelper createHelper = null;
+    private String fileName = null;
 
     private TransferDescription td = null;
 //    private String iliGeomAttrName = null;
@@ -78,6 +81,7 @@ public class ExcelWriter implements IoxWriter {
 
     private void init(File file, Settings settings) throws IoxException {
         this.outputFile = file;
+        this.fileName = file.getName();
     }
 
     public void setModel(TransferDescription td) {
@@ -215,7 +219,10 @@ public class ExcelWriter implements IoxWriter {
             
             if (headerRow == null) {
                 workbook = new XSSFWorkbook(); 
-                sheet = workbook.createSheet();
+                
+                String normalizedFileName = this.normalizeFileName(this.fileName);
+                
+                sheet = workbook.createSheet(normalizedFileName);
                 headerRow = sheet.createRow(0);
                 createHelper = workbook.getCreationHelper();
 
@@ -331,4 +338,16 @@ public class ExcelWriter implements IoxWriter {
     public void setFactory(IoxFactoryCollection arg0) throws IoxException {        
     }
 
+    private String normalizeFileName(String fileName) {
+        // Normalize the string to decompose characters
+        String normalized = Normalizer.normalize(FilenameUtils.getBaseName(fileName), Normalizer.Form.NFD);
+        
+        // Remove diacritical marks (accents, etc.)
+        String ascii = normalized.replaceAll("\\p{M}", "");
+        
+        // Remove any remaining non-ASCII characters
+        ascii = ascii.replaceAll("[^\\x00-\\x7F]", "");
+        
+        return ascii.toLowerCase();        
+    }
 }
