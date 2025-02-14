@@ -1,6 +1,7 @@
 package ch.interlis.ioxwkf.excel;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.Normalizer;
@@ -82,6 +83,8 @@ public class ExcelWriter implements IoxWriter {
     private void init(File file, Settings settings) throws IoxException {
         this.outputFile = file;
         this.fileName = file.getName();
+        
+        
     }
 
     public void setModel(TransferDescription td) {
@@ -97,15 +100,41 @@ public class ExcelWriter implements IoxWriter {
         if(event instanceof StartTransferEvent){
             // ignore
         } else if(event instanceof StartBasketEvent) {
+            try {
+                if (outputFile.exists()) {
+                    try (FileInputStream fis = new FileInputStream(outputFile)) {
+                        workbook = new XSSFWorkbook(fis);
+                    }
+                } else {
+                    workbook = new XSSFWorkbook();
+                }
+            } catch (IOException e) {
+                throw new IoxException(e);
+            }
+
+            if (headerRow == null) { 
+                String normalizedFileName = this.normalizeFileName(this.fileName);
+                
+                sheet = workbook.createSheet(normalizedFileName);
+                headerRow = sheet.createRow(0);
+                createHelper = workbook.getCreationHelper();
+
+                // Header wird nicht geschrieben, wenn man von aussen nicht setAttrDescs setzt.
+                if (attrDescs != null) {
+                    int cellnum = 0;
+                    for (ExcelAttributeDescriptor attrDesc : attrDescs) {
+                        Cell cell = headerRow.createCell(cellnum++);
+                        cell.setCellValue(attrDesc.getAttributeName());
+                    }                    
+                }
+            }
         } else if(event instanceof ObjectEvent){
             ObjectEvent obj = (ObjectEvent) event;
             IomObject iomObj = obj.getIomObject();
             String tag = iomObj.getobjecttag();
             
-//            System.out.println("tag: " + tag);
-            
             // Wenn null, dann gibt es noch kein "Schema".
-            if(attrDescs == null) {
+            if (attrDescs == null) {
                 attrDescs = new ArrayList<>();
                 attrOrder = new HashMap<String, Integer>();
                 if(td != null) {
@@ -217,15 +246,9 @@ public class ExcelWriter implements IoxWriter {
                 }
             }
             
-            if (headerRow == null) {
-                workbook = new XSSFWorkbook(); 
-                
-                String normalizedFileName = this.normalizeFileName(this.fileName);
-                
-                sheet = workbook.createSheet(normalizedFileName);
-                headerRow = sheet.createRow(0);
-                createHelper = workbook.getCreationHelper();
-
+            // HeaderRow kann initialisert worden sein, aber nicht abgefüllt, wenn
+            // setAttrDescs nicht von aussen gesetzt wurde.
+            if (headerRow.getRowNum() == 0) {
                 int cellnum = 0;
                 for (ExcelAttributeDescriptor attrDesc : attrDescs) {
                     Cell cell = headerRow.createCell(cellnum++);
@@ -296,7 +319,7 @@ public class ExcelWriter implements IoxWriter {
         }
     }
     
-    private int getColumnIndex(String attrName) throws NoSuchElementException {
+    private int getColumnIndex(String attrName) throws NoSuchElementException {        
         Iterator<Cell> it = headerRow.cellIterator();
         while (it.hasNext()) {
             Cell cell = it.next();
@@ -312,7 +335,7 @@ public class ExcelWriter implements IoxWriter {
     public void close() throws IoxException {
         try {
             FileOutputStream out = new FileOutputStream(outputFile);
-            workbook.write(out);
+            workbook.write(out);                
             out.close();
         } catch (IOException e) {
             e.printStackTrace();

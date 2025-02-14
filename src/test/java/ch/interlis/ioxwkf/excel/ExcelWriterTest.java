@@ -3,6 +3,10 @@ package ch.interlis.ioxwkf.excel;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -55,7 +59,127 @@ public class ExcelWriterTest {
         TransferDescription td = ch.interlis.ili2c.Ili2c.runCompiler(ili2cConfig);
         return td;
     }
+    
+    @Test
+    public void existing_file_Ok() throws Exception {
+        // Prepare
+        File parentDir = new File(TEST_OUT, "existing_file_Ok");
+        parentDir.mkdirs();
+        Path original = Paths.get("src/test/data/ExcelWriter/existing_file_Ok.xlsx");
+        Path copied = Paths.get(parentDir.getAbsolutePath(), "existing_file_Ok.xlsx");
+        Files.copy(original, copied, StandardCopyOption.REPLACE_EXISTING);
 
+        Iom_jObject inputObj1 = new Iom_jObject("Test1.Topic1.Obj1", "o1");
+        inputObj1.setattrvalue("id1", "1");
+        inputObj1.setattrvalue("aText", "text1");
+
+        // Run
+        ExcelWriter writer = null;
+        File file = new File(parentDir, "existing_file_Ok.xlsx");
+        try {
+            writer = new ExcelWriter(file);
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1", "bid1"));
+            writer.write(new ObjectEvent(inputObj1));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch (IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer = null;
+            }
+        }
+
+        // Validate
+        FileInputStream fis = new FileInputStream(file);
+        XSSFWorkbook workbook = new XSSFWorkbook(fis);
+        XSSFSheet sheet = workbook.getSheet("existing_file_ok");
+
+        Row headerRow = sheet.getRow(0);
+        Assertions.assertEquals(2, headerRow.getLastCellNum());
+
+        Row dataRow = sheet.getRow(1);
+        Assertions.assertEquals(2, dataRow.getLastCellNum());
+
+        Iterator<Cell> dataCellIterator = dataRow.cellIterator();
+        while (dataCellIterator.hasNext()) {
+            Cell cell = dataCellIterator.next();
+            String attrName = this.getAttrName(headerRow, cell.getColumnIndex());
+
+            switch (attrName) {
+            case "aText":
+                Assertions.assertEquals("text1", cell.getStringCellValue());
+                break;
+            case "id1":
+                Assertions.assertEquals("1", cell.getStringCellValue());
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid attribute name found: " + attrName);
+            }
+        }
+        Assertions.assertEquals(1, sheet.getLastRowNum());
+        
+        workbook.close();
+        fis.close();
+    }
+
+
+
+    @Test 
+    public void empty_Ok() throws Exception {
+        // Prepare
+        File parentDir = new File(TEST_OUT, "empty_Ok");
+        parentDir.mkdirs();
+
+        List<ExcelAttributeDescriptor> attrDescs = new ArrayList<>();
+        {
+            ExcelAttributeDescriptor attrDesc = new ExcelAttributeDescriptor();
+            attrDesc.setAttributeName("kennung");
+            attrDesc.setBinding(String.class);
+            attrDescs.add(attrDesc);
+        }
+
+        // Run
+        ExcelWriter writer = null;
+        File file = new File(parentDir,"empty_Ok.xlsx");
+        try {
+            writer = new ExcelWriter(file);
+            writer.setAttributeDescriptors(attrDescs);
+            writer.write(new StartTransferEvent());
+            writer.write(new StartBasketEvent("Test1.Topic1","bid1"));
+            writer.write(new EndBasketEvent());
+            writer.write(new EndTransferEvent());
+        } catch(IoxException e) {
+            throw new IoxException(e);
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IoxException e) {
+                    throw new IoxException(e);
+                }
+                writer=null;
+            }
+        }
+
+        // Validate
+        FileInputStream fis = new FileInputStream(file);        
+        XSSFWorkbook workbook = new XSSFWorkbook(fis);
+        XSSFSheet sheet = workbook.getSheetAt(0);
+
+        Row headerRow = sheet.getRow(0);
+        Assertions.assertEquals(1, headerRow.getLastCellNum());
+        
+        workbook.close();
+    }
+    
+    
     @Test
     public void model_set_Ok() throws Exception {
         // Prepare
