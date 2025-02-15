@@ -134,6 +134,7 @@ public class ExcelWriterTest {
         // Prepare
         File parentDir = new File(TEST_OUT, "empty_Ok");
         parentDir.mkdirs();
+        new File(parentDir,"empty_Ok.xlsx").delete();
 
         List<ExcelAttributeDescriptor> attrDescs = new ArrayList<>();
         {
@@ -183,6 +184,7 @@ public class ExcelWriterTest {
         // Prepare
         File parentDir = new File(TEST_OUT, "model_set_Ok");
         parentDir.mkdirs();
+        new File(parentDir,"model_set_Ok.xlsx").delete();
         TransferDescription td = compileModel("Test1.ili");
         
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Class1", "o1");
@@ -283,6 +285,7 @@ public class ExcelWriterTest {
         // Prepare
         File parentDir = new File(TEST_OUT, "attributes_description_set_Ok");
         parentDir.mkdirs();
+        new File(parentDir,"attributes_description_set_Ok.xlsx").delete();
 
         List<ExcelAttributeDescriptor> attrDescs = new ArrayList<>();
         {
@@ -438,6 +441,7 @@ public class ExcelWriterTest {
         // Prepare
         File parentDir = new File(TEST_OUT, "attributes_no_description_set_Ok");
         parentDir.mkdirs();
+        new File(parentDir,"attributes_no_description_set_Ok.xlsx").delete();
 
         Iom_jObject inputObj = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         inputObj.setattrvalue("id1", "1");
@@ -514,6 +518,7 @@ public class ExcelWriterTest {
         // Prepare
         File parentDir = new File(TEST_OUT, "attributes_no_description_set_null_value_Ok");
         parentDir.mkdirs();
+        new File(parentDir,"attributes_no_description_set_null_value_Ok.xlsx").delete();
 
         Iom_jObject inputObj1 = new Iom_jObject("Test1.Topic1.Obj1", "o1");
         inputObj1.setattrvalue("id1", "1");
