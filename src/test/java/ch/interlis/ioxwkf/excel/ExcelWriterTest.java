@@ -129,8 +129,6 @@ public class ExcelWriterTest {
         fis.close();
     }
 
-
-
     @Test 
     public void empty_Ok() throws Exception {
         // Prepare

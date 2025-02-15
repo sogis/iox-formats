@@ -72,19 +72,18 @@ public class ExcelWriter implements IoxWriter {
     private Integer defaultSrsId = 2056; // TODO: null
 
     public ExcelWriter(File file) throws IoxException {
-        this(file,null);
-        System.setProperty("log4j2.loggerContextFactory","org.apache.logging.log4j.simple.SimpleLoggerContextFactory");
+        this(file, null);
     }
 
     public ExcelWriter(File file, Settings settings) throws IoxException {
-        init(file,settings);
+        System.setProperty("log4j2.loggerContextFactory","org.apache.logging.log4j.simple.SimpleLoggerContextFactory");
+        System.setProperty("org.apache.logging.log4j.simplelog.StatusLogger.level", "OFF");
+        init(file, settings);
     }
 
     private void init(File file, Settings settings) throws IoxException {
         this.outputFile = file;
         this.fileName = file.getName();
-        
-        
     }
 
     public void setModel(TransferDescription td) {
@@ -97,9 +96,9 @@ public class ExcelWriter implements IoxWriter {
     
     @Override
     public void write(IoxEvent event) throws IoxException {
-        if(event instanceof StartTransferEvent){
+        if (event instanceof StartTransferEvent) {
             // ignore
-        } else if(event instanceof StartBasketEvent) {
+        } else if (event instanceof StartBasketEvent) {
             try {
                 if (outputFile.exists()) {
                     try (FileInputStream fis = new FileInputStream(outputFile)) {
@@ -128,7 +127,7 @@ public class ExcelWriter implements IoxWriter {
                     }                    
                 }
             }
-        } else if(event instanceof ObjectEvent){
+        } else if (event instanceof ObjectEvent) {            
             ObjectEvent obj = (ObjectEvent) event;
             IomObject iomObj = obj.getIomObject();
             String tag = iomObj.getobjecttag();
