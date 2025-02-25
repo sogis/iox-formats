@@ -69,7 +69,7 @@ public class ExcelWriter implements IoxWriter {
     private static final String MULTIPOLYLINE="MULTIPOLYLINE";
     private static final String MULTISURFACE="MULTISURFACE";
 
-    private static final String SHEET_NAME = "ch.interlis.ioxwkf.excel.sheetName";
+    public static final String SHEET_NAME = "ch.interlis.ioxwkf.excel.sheetName";
     
     private Integer srsId = null;
     private Integer defaultSrsId = 2056; // TODO: null
