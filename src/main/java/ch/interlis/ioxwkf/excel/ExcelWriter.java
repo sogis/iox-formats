@@ -56,8 +56,9 @@ public class ExcelWriter implements IoxWriter {
     private XSSFWorkbook workbook = null;
     private XSSFSheet sheet = null;
     private CreationHelper createHelper = null;
-    private String fileName = null;
-
+    //private String fileName = null;
+    private String sheetName = null;
+    
     private TransferDescription td = null;
 //    private String iliGeomAttrName = null;
     
@@ -68,6 +69,8 @@ public class ExcelWriter implements IoxWriter {
     private static final String MULTIPOLYLINE="MULTIPOLYLINE";
     private static final String MULTISURFACE="MULTISURFACE";
 
+    private static final String SHEET_NAME = "ch.interlis.ioxwkf.excel.sheetName";
+    
     private Integer srsId = null;
     private Integer defaultSrsId = 2056; // TODO: null
 
@@ -83,7 +86,8 @@ public class ExcelWriter implements IoxWriter {
 
     private void init(File file, Settings settings) throws IoxException {
         this.outputFile = file;
-        this.fileName = file.getName();
+        this.sheetName = settings.getValue(SHEET_NAME)!=null ? settings.getValue(SHEET_NAME) : file.getName();
+        //this.fileName = file.getName();
     }
 
     public void setModel(TransferDescription td) {
@@ -112,9 +116,7 @@ public class ExcelWriter implements IoxWriter {
             }
 
             if (headerRow == null) { 
-                String normalizedFileName = this.normalizeFileName(this.fileName);
-                
-                System.out.println("*****" + workbook.getNumberOfSheets());
+                String normalizedFileName = this.normalizeFileName(this.sheetName);
                 
                 sheet = workbook.createSheet(normalizedFileName);
                 headerRow = sheet.createRow(0);
