@@ -114,6 +114,9 @@ public class ExcelWriter implements IoxWriter {
             if (headerRow == null) { 
                 String normalizedFileName = this.normalizeFileName(this.fileName);
                 
+                System.out.println("*****" + workbook.getNumberOfSheets());
+                System.out.println("*****" + workbook.getSheetAt(0));
+                
                 sheet = workbook.createSheet(normalizedFileName);
                 headerRow = sheet.createRow(0);
                 createHelper = workbook.getCreationHelper();
