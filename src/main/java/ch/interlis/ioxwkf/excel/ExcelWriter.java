@@ -86,8 +86,12 @@ public class ExcelWriter implements IoxWriter {
 
     private void init(File file, Settings settings) throws IoxException {
         this.outputFile = file;
-        this.sheetName = settings.getValue(SHEET_NAME)!=null ? settings.getValue(SHEET_NAME) : file.getName();
-        //this.fileName = file.getName();
+        
+        if (settings != null) {
+            this.sheetName = settings.getValue(SHEET_NAME)!=null ? settings.getValue(SHEET_NAME) : file.getName();
+        } else {
+            this.sheetName = file.getName();
+        }
     }
 
     public void setModel(TransferDescription td) {
